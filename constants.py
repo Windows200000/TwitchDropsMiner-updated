@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 
 # True if we're running from a built EXE (or a Linux AppImage), False inside a dev build
-IS_APPIMAGE = "APPIMAGE" in os.environ and os.path.exists(os.environ["APPIMAGE"])
+IS_APPIMAGE = "APPIMAGE" in os.environ and Path(os.environ["APPIMAGE"]).exists()
 IS_PACKAGED = hasattr(sys, "_MEIPASS") or IS_APPIMAGE
 # logging special levels
 CALL = logging.INFO - 1
@@ -423,7 +423,7 @@ class WebsocketTopic:
     def __eq__(self, other) -> bool:
         if isinstance(other, WebsocketTopic):
             return self._id == other._id
-        elif isinstance(other, str):
+        if isinstance(other, str):
             return self._id == other
         return NotImplemented
 

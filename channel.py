@@ -182,7 +182,7 @@ class Channel:
     @property
     def offline(self) -> bool:
         """Returns True if the streamer is offline and isn't about to come online, False otherwise."""
-        return self._stream is None and self._pending_stream_up is None
+        return self._stream is None is self._pending_stream_up
 
     @property
     def pending_online(self) -> bool:
@@ -236,16 +236,16 @@ class Channel:
         SPADE_PATTERN: str = r'"spade_?url": ?"(https://video-edge-[.\w\-/]+\.ts(?:\?allow_stream=true)?)"'
         async with self._twitch.request("GET", self.url) as response1:
             streamer_html: str = await response1.text(encoding="utf8")
-        match = re.search(SPADE_PATTERN, streamer_html, re.I)
+        match = re.search(SPADE_PATTERN, streamer_html, re.IGNORECASE)
         if not match:
-            match = re.search(SETTINGS_PATTERN, streamer_html, re.I)
+            match = re.search(SETTINGS_PATTERN, streamer_html, re.IGNORECASE)
             if not match:
                 msg = "Error while spade_url extraction: step #1"
                 raise MinerException(msg)
             streamer_settings = match.group(1)
             async with self._twitch.request("GET", streamer_settings) as response2:
                 settings_js: str = await response2.text(encoding="utf8")
-            match = re.search(SPADE_PATTERN, settings_js, re.I)
+            match = re.search(SPADE_PATTERN, settings_js, re.IGNORECASE)
             if not match:
                 msg = "Error while spade_url extraction: step #2"
                 raise MinerException(msg)

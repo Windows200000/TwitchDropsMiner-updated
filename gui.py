@@ -15,7 +15,7 @@ from pathlib import Path
 from textwrap import dedent
 from tkinter import DoubleVar, IntVar, StringVar, Tk, ttk
 from tkinter.font import Font, nametofont
-from typing import TYPE_CHECKING, Any, Generic, NoReturn, TypedDict, Union
+from typing import TYPE_CHECKING, Any, Generic, NoReturn, TypedDict
 
 import pystray
 from PIL import Image as Image_module
@@ -53,12 +53,7 @@ if TYPE_CHECKING:
     from twitch import Twitch
 
 
-TK_PADDING = Union[
-    int,
-    tuple[int, int],
-    tuple[int, int, int],
-    tuple[int, int, int, int],
-]
+TK_PADDING = int | tuple[int, int] | tuple[int, int, int] | tuple[int, int, int, int]
 DIGITS = ceil(log10(WS_TOPICS_LIMIT))
 
 
@@ -325,7 +320,7 @@ class MouseOverLabel(ttk.Label):
                     events_change = True
                 self._alt_text = options.pop("alt_text")
             if "reverse" in options:
-                if bool(self._alt_reverse) != bool(options["reverse"]):
+                if self._alt_reverse != bool(options["reverse"]):
                     events_change = True
                 self._alt_reverse = options.pop("reverse")
             if self._org_text and not self._alt_text:
@@ -482,7 +477,7 @@ class WebsocketStatus:
         status: str | None = None,
         topics: int | None = None,
     ) -> None:
-        if status is None and topics is None:
+        if status is None is topics:
             msg = "You need to provide at least one of: status, topics"
             raise TypeError(msg)
         entry = self._items.get(idx)
@@ -891,7 +886,7 @@ class ConsoleOutput:
         yscroll.grid(column=1, row=0, sticky="ns")
 
     def print(self, message: str) -> None:
-        stamp = datetime.now().strftime("%X")
+        stamp = datetime.now(tz=datetime.timezone.utc).strftime("%X")
         if "\n" in message:
             message = message.replace("\n", f"\n{stamp}: ")
         self._text.config(state="normal")
@@ -2543,7 +2538,7 @@ if __name__ == "__main__":
             ),
             image_url=image_url,
             can_claim=False,
-            can_earn=lambda: False,
+            can_earn=bool,
             is_claimed=False,
             preconditions=True,
             benefits=benefits,

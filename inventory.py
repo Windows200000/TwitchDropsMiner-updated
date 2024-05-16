@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from twitch import Twitch
 
 
-DIMS_PATTERN = re.compile(r"-\d+x\d+(?=\.(?:jpg|png|gif)$)", re.I)
+DIMS_PATTERN = re.compile(r"-\d+x\d+(?=\.(?:jpg|png|gif)$)", re.IGNORECASE)
 
 
 def remove_dimensions(url: URLType) -> URLType:
@@ -94,8 +94,7 @@ class BaseDrop:
     @cached_property
     def _all_preconditions(self) -> set[str]:
         campaign = self.campaign
-        preconditions: set[str] = set(self._precondition_drops)
-        return preconditions.union(
+        return set(self._precondition_drops).union(
             *(
                 campaign.timed_drops[pid]._all_preconditions
                 for pid in self._precondition_drops
@@ -164,13 +163,13 @@ class BaseDrop:
         data = response["data"]
         if data.get("errors"):
             return False
-        elif "claimDropRewards" in data:
+        if "claimDropRewards" in data:
             if not data["claimDropRewards"]:
                 return False
-            elif data["claimDropRewards"]["status"] in [
+            if data["claimDropRewards"]["status"] in (
                 "ELIGIBLE_FOR_ALL",
                 "DROP_INSTANCE_ALREADY_CLAIMED",
-            ]:
+            ):
                 return True
         return False
 

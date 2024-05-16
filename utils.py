@@ -213,8 +213,7 @@ def _deserialize(obj: JsonType) -> Any:
         obj_type = obj["__type"]
         if obj_type in SERIALIZE_ENV:
             return SERIALIZE_ENV[obj_type](obj["data"])
-        else:
-            return _MISSING
+        return _MISSING
     return obj
 
 
@@ -241,7 +240,7 @@ def merge_json(obj: JsonType, template: Mapping[Any, Any]) -> None:
 def json_load(path: Path, defaults: _JSON_T, *, merge: bool = True) -> _JSON_T:
     defaults_dict: JsonType = dict(defaults)
     if path.exists():
-        with open(path, encoding="utf8") as file:
+        with path.open(encoding="utf8") as file:
             combined: JsonType = _remove_missing(
                 json.load(file, object_hook=_deserialize),
             )
@@ -253,7 +252,7 @@ def json_load(path: Path, defaults: _JSON_T, *, merge: bool = True) -> _JSON_T:
 
 
 def json_save(path: Path, contents: Mapping[Any, Any], *, sort: bool = False) -> None:
-    with open(path, "w", encoding="utf8") as file:
+    with path.open("w", encoding="utf8") as file:
         json.dump(contents, file, default=_serialize, sort_keys=sort, indent=4)
 
 
@@ -295,9 +294,9 @@ class ExponentialBackoff:
             msg = "Base has to be greater than 1"
             raise ValueError(msg)
         self.steps: int = 0
-        self.base: float = float(base)
-        self.shift: float = float(shift)
-        self.maximum: float = float(maximum)
+        self.base: float = base
+        self.shift: float = shift
+        self.maximum: float = maximum
         self.variance_min: float
         self.variance_max: float
         if isinstance(variance, tuple):

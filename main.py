@@ -14,6 +14,7 @@ if __name__ == "__main__":
     import tkinter as tk
     import traceback
     import warnings
+    from contextlib import suppress
     from tkinter import messagebox
     from typing import IO, NoReturn
 
@@ -73,7 +74,7 @@ if __name__ == "__main__":
             """
             if self._debug_ws:
                 return logging.DEBUG
-            elif self._verbose >= 4:
+            if self._verbose >= 4:
                 return logging.INFO
             return logging.NOTSET
 
@@ -81,7 +82,7 @@ if __name__ == "__main__":
         def debug_gql(self) -> int:
             if self._debug_gql:
                 return logging.DEBUG
-            elif self._verbose >= 4:
+            if self._verbose >= 4:
                 return logging.INFO
             return logging.NOTSET
 
@@ -122,11 +123,8 @@ if __name__ == "__main__":
     # client run
     async def main() -> None:
         # set language
-        try:
+        with suppress(ValueError):
             _.set_language(settings.language)
-        except ValueError:
-            # this language doesn't exist - stick to English
-            pass
 
         # handle logging stuff
         if settings.logging_level > logging.DEBUG:

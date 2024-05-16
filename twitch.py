@@ -209,15 +209,14 @@ class _AuthState:
                             if not attempt:
                                 version_main = int(match.group(3))
                                 continue
-                            else:
-                                msg = (
-                                    "Your Chrome browser is out of date\n"
-                                    f"Required version: {match.group(1)}\n"
-                                    f"Current version: {match.group(2)}"
-                                )
-                                raise MinerException(
-                                    msg,
-                                ) from None
+                            msg = (
+                                "Your Chrome browser is out of date\n"
+                                f"Required version: {match.group(1)}\n"
+                                f"Current version: {match.group(2)}"
+                            )
+                            raise MinerException(
+                                msg,
+                            ) from None
                         msg = "An error occured while boostrapping the Chrome browser"
                         raise MinerException(
                             msg,
@@ -441,7 +440,7 @@ class _AuthState:
                     logger.info("1000: CAPTCHA is required")
                     use_chrome = True
                     break
-                elif error_code in (2004, 3001):
+                if error_code in (2004, 3001):
                     logger.info(
                         "3001: Login failed due to incorrect username or password",
                     )
@@ -451,7 +450,7 @@ class _AuthState:
                         login_form.clear(login=True)
                     login_form.clear(password=True)
                     continue
-                elif error_code in (
+                if error_code in (
                     3012,  # Invalid authy token
                     3023,  # Invalid email code
                 ):
@@ -464,7 +463,7 @@ class _AuthState:
                         gui_print(_("login", "incorrect_twofa_code"))
                     login_form.clear(token=True)
                     continue
-                elif error_code in (
+                if error_code in (
                     3011,  # Authy token needed
                     3022,  # Email code needed
                 ):
@@ -478,7 +477,7 @@ class _AuthState:
                         token_kind = "authy"
                         gui_print(_("login", "twofa_code_required"))
                     continue
-                elif error_code >= 5000:
+                if error_code >= 5000:
                     # Special errors, usually from Twitch telling the user to "go away"
                     # We print the code out to inform the user, and just use chrome flow instead
                     # {
@@ -495,10 +494,9 @@ class _AuthState:
                     logger.info(str(login_response))
                     use_chrome = True
                     break
-                else:
-                    ext_msg = str(login_response)
-                    logger.info(ext_msg)
-                    raise LoginException(ext_msg)
+                ext_msg = str(login_response)
+                logger.info(ext_msg)
+                raise LoginException(ext_msg)
             # Success handling
             if "access_token" in login_response:
                 self.access_token = cast(str, login_response["access_token"])
@@ -599,7 +597,7 @@ class _AuthState:
                         assert client_info.CLIENT_URL.host is not None
                         jar.clear_domain(client_info.CLIENT_URL.host)
                         continue
-                    elif status == 200:
+                    if status == 200:
                         validate_response = await response.json()
                         break
             else:
@@ -787,7 +785,7 @@ class Twitch:
         if (game := channel.game) is None:
             # None when OFFLINE or no game set
             return -1
-        elif game not in self.wanted_games:
+        if game not in self.wanted_games:
             return 0
         return self.wanted_games[game]
 
@@ -914,14 +912,18 @@ class Twitch:
                 if to_remove_channels:
                     to_remove_topics: list[str] = []
                     for channel in to_remove_channels:
-                        to_remove_topics.append(
-                            WebsocketTopic.as_str("Channel", "StreamState", channel.id),
-                        )
-                        to_remove_topics.append(
-                            WebsocketTopic.as_str(
-                                "Channel",
-                                "StreamUpdate",
-                                channel.id,
+                        to_remove_topics.extend(
+                            (
+                                WebsocketTopic.as_str(
+                                    "Channel",
+                                    "StreamState",
+                                    channel.id,
+                                ),
+                                WebsocketTopic.as_str(
+                                    "Channel",
+                                    "StreamUpdate",
+                                    channel.id,
+                                ),
                             ),
                         )
                     self.websocket.remove_topics(to_remove_topics)
@@ -990,14 +992,18 @@ class Twitch:
                     # just make sure to unsubscribe from their topics
                     to_remove_topics = []
                     for channel in to_remove_channels:
-                        to_remove_topics.append(
-                            WebsocketTopic.as_str("Channel", "StreamState", channel.id),
-                        )
-                        to_remove_topics.append(
-                            WebsocketTopic.as_str(
-                                "Channel",
-                                "StreamUpdate",
-                                channel.id,
+                        to_remove_topics.extend(
+                            (
+                                WebsocketTopic.as_str(
+                                    "Channel",
+                                    "StreamState",
+                                    channel.id,
+                                ),
+                                WebsocketTopic.as_str(
+                                    "Channel",
+                                    "StreamUpdate",
+                                    channel.id,
+                                ),
                             ),
                         )
                     self.websocket.remove_topics(to_remove_topics)
@@ -1009,20 +1015,20 @@ class Twitch:
                 # subscribe to these channel's state updates
                 to_add_topics: list[WebsocketTopic] = []
                 for channel_id in channels:
-                    to_add_topics.append(
-                        WebsocketTopic(
-                            "Channel",
-                            "StreamState",
-                            channel_id,
-                            self.process_stream_state,
-                        ),
-                    )
-                    to_add_topics.append(
-                        WebsocketTopic(
-                            "Channel",
-                            "StreamUpdate",
-                            channel_id,
-                            self.process_stream_update,
+                    to_add_topics.extend(
+                        (
+                            WebsocketTopic(
+                                "Channel",
+                                "StreamState",
+                                channel_id,
+                                self.process_stream_state,
+                            ),
+                            WebsocketTopic(
+                                "Channel",
+                                "StreamUpdate",
+                                channel_id,
+                                self.process_stream_update,
+                            ),
                         ),
                     )
                 self.websocket.add_topics(to_add_topics)
@@ -1233,10 +1239,8 @@ class Twitch:
             # ensure that we don't have unclaimed points bonus
             watching_channel = self.watching_channel.get_with_default(None)
             if watching_channel is not None:
-                try:
+                with suppress(Exception):
                     await watching_channel.claim_bonus()
-                except Exception:
-                    pass  # we intentionally silently skip anything else
         # this triggers this task restart every (up to) 60 minutes
         logger.log(CALL, "Maintenance task requests a reload")
         self.change_state(State.INVENTORY_FETCH)
@@ -1473,7 +1477,7 @@ class Twitch:
             # we aren't actually waiting for a progress update right now, so we can just
             # ignore the event this time
             return
-        elif drop is not None and drop.can_earn(
+        if drop is not None and drop.can_earn(
             self.watching_channel.get_with_default(None),
         ):
             # the received payload is for the drop we expected

@@ -67,9 +67,9 @@ class Settings:
         if name in self.PASSTHROUGH:
             # passthrough
             return getattr(super(), name)
-        elif hasattr(self._args, name):
+        if hasattr(self._args, name):
             return getattr(self._args, name)
-        elif name in self._settings:
+        if name in self._settings:
             return self._settings[name]  # type: ignore[literal-required]
         return getattr(super(), name)
 
@@ -77,7 +77,7 @@ class Settings:
         if name in self.PASSTHROUGH:
             # passthrough
             return super().__setattr__(name, value)
-        elif name in self._settings:
+        if name in self._settings:
             self._settings[name] = value  # type: ignore[literal-required]
             self._altered = True
             return None

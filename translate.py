@@ -440,10 +440,10 @@ class Translator:
         if language not in self._langs:
             msg = "Unrecognized language"
             raise ValueError(msg)
-        elif self._translation["language_name"] == language:
+        if self._translation["language_name"] == language:
             # same language as loaded selected
             return
-        elif language == DEFAULT_LANG:
+        if language == DEFAULT_LANG:
             # default language selected - use the memory value
             self._translation = default_translation.copy()
         else:
