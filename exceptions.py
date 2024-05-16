@@ -1,8 +1,7 @@
 class MinerException(Exception):
-    """
-    Base exception class for this application.
-    """
-    def __init__(self, *args: object):
+    """Base exception class for this application."""
+
+    def __init__(self, *args: object) -> None:
         if args:
             super().__init__(*args)
         else:
@@ -10,40 +9,39 @@ class MinerException(Exception):
 
 
 class ExitRequest(MinerException):
-    """
-    Raised when the application is requested to exit from outside of the main loop.
+    """Raised when the application is requested to exit from outside of the main loop.
 
     Intended for internal use only.
     """
-    def __init__(self):
+
+    def __init__(self) -> None:
         super().__init__("Application was requested to exit")
 
 
 class ReloadRequest(MinerException):
-    """
-    Raised when the application is requested to reload entirely, without closing the GUI.
+    """Raised when the application is requested to reload entirely, without closing the GUI.
 
     Intended for internal use only.
     """
-    def __init__(self):
+
+    def __init__(self) -> None:
         super().__init__("Application was requested to reload entirely")
 
 
 class RequestInvalid(MinerException):
-    """
-    Raised when a request becomes no longer valid inside its retry loop.
+    """Raised when a request becomes no longer valid inside its retry loop.
 
     Intended for internal use only.
     """
-    def __init__(self):
+
+    def __init__(self) -> None:
         super().__init__("Request became invalid during its retry loop")
 
 
 class RequestException(MinerException):
-    """
-    Raised for cases where a web request doesn't return what we wanted it to.
-    """
-    def __init__(self, *args: object):
+    """Raised for cases where a web request doesn't return what we wanted it to."""
+
+    def __init__(self, *args: object) -> None:
         if args:
             super().__init__(*args)
         else:
@@ -51,15 +49,16 @@ class RequestException(MinerException):
 
 
 class WebsocketClosed(RequestException):
-    """
-    Raised when the websocket connection has been closed.
+    """Raised when the websocket connection has been closed.
 
-    Attributes:
-    -----------
+    Attributes
+    ----------
     received: bool
         `True` if the closing was caused by our side receiving a close frame, `False` otherwise.
+
     """
-    def __init__(self, *args: object, received: bool = False):
+
+    def __init__(self, *args: object, received: bool = False) -> None:
         if args:
             super().__init__(*args)
         else:
@@ -68,10 +67,9 @@ class WebsocketClosed(RequestException):
 
 
 class LoginException(RequestException):
-    """
-    Raised when an exception occurs during login phase.
-    """
-    def __init__(self, *args: object):
+    """Raised when an exception occurs during login phase."""
+
+    def __init__(self, *args: object) -> None:
         if args:
             super().__init__(*args)
         else:
@@ -79,8 +77,7 @@ class LoginException(RequestException):
 
 
 class CaptchaRequired(LoginException):
-    """
-    The most dreaded thing about automated scripts...
-    """
-    def __init__(self):
+    """The most dreaded thing about automated scripts..."""
+
+    def __init__(self) -> None:
         super().__init__("Captcha is required")

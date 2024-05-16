@@ -3,32 +3,31 @@ from __future__ import annotations
 # import an additional thing for proper PyInstaller freeze support
 from multiprocessing import freeze_support
 
-
 if __name__ == "__main__":
     freeze_support()
-    import io
-    import sys
-    import signal
-    import asyncio
-    import logging
     import argparse
-    import warnings
-    import traceback
+    import asyncio
+    import io
+    import logging
+    import signal
+    import sys
     import tkinter as tk
+    import traceback
+    import warnings
     from tkinter import messagebox
     from typing import IO, NoReturn
 
-    if sys.version_info >= (3, 10):
-        import truststore
-        truststore.inject_into_ssl()
+    import truststore
 
+    truststore.inject_into_ssl()
+
+    from constants import CALL, FILE_FORMATTER, LOCK_PATH, LOG_PATH, SELF_PATH
+    from exceptions import CaptchaRequired
+    from settings import Settings
     from translate import _
     from twitch import Twitch
-    from settings import Settings
-    from version import __version__
-    from exceptions import CaptchaRequired
     from utils import lock_file, resource_path, set_root_icon
-    from constants import CALL, SELF_PATH, FILE_FORMATTER, LOG_PATH, LOCK_PATH
+    from version import __version__
 
     warnings.simplefilter("default", ResourceWarning)
 
@@ -68,8 +67,7 @@ if __name__ == "__main__":
 
         @property
         def debug_ws(self) -> int:
-            """
-            If the debug flag is True, return DEBUG.
+            """If the debug flag is True, return DEBUG.
             If the main logging level is DEBUG, return INFO to avoid seeing raw messages.
             Otherwise, return NOTSET to inherit the global logging level.
             """
@@ -104,12 +102,8 @@ if __name__ == "__main__":
     parser.add_argument("--tray", action="store_true")
     parser.add_argument("--log", action="store_true")
     # debug options
-    parser.add_argument(
-        "--debug-ws", dest="_debug_ws", action="store_true"
-    )
-    parser.add_argument(
-        "--debug-gql", dest="_debug_gql", action="store_true"
-    )
+    parser.add_argument("--debug-ws", dest="_debug_ws", action="store_true")
+    parser.add_argument("--debug-gql", dest="_debug_gql", action="store_true")
     args = parser.parse_args(namespace=ParsedArgs())
     # load settings
     try:
@@ -117,7 +111,7 @@ if __name__ == "__main__":
     except Exception:
         messagebox.showerror(
             "Settings error",
-            f"There was an error while loading the settings file:\n\n{traceback.format_exc()}"
+            f"There was an error while loading the settings file:\n\n{traceback.format_exc()}",
         )
         sys.exit(4)
     # dummy window isn't needed anymore
@@ -126,7 +120,7 @@ if __name__ == "__main__":
     del root, parser
 
     # client run
-    async def main():
+    async def main() -> None:
         # set language
         try:
             _.set_language(settings.language)

@@ -1,26 +1,24 @@
 from __future__ import annotations
-import asyncio
-from datetime import datetime, timedelta, timezone
 
+import asyncio
+import contextlib
 import io
 import json
-from typing import Dict, TypedDict, NewType, TYPE_CHECKING
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING, NewType, TypedDict
 
-from utils import json_load, json_save
-from constants import URLType, CACHE_PATH, CACHE_DB
-
+from constants import CACHE_DB, CACHE_PATH, URLType
 from PIL import Image as Image_module
 from PIL.ImageTk import PhotoImage
-
+from utils import json_load, json_save
 
 if TYPE_CHECKING:
     from gui import GUIManager
     from PIL.Image import Image
-    from typing_extensions import TypeAlias
 
 
 ImageHash = NewType("ImageHash", str)
-ImageSize: TypeAlias = "tuple[int, int]"
+type ImageSize = "tuple[int, int]"
 
 
 class ExpiringHash(TypedDict):
@@ -28,16 +26,16 @@ class ExpiringHash(TypedDict):
     expires: datetime
 
 
-Hashes = Dict[URLType, ExpiringHash]
+Hashes = dict[URLType, ExpiringHash]
 default_database: Hashes = {}
 
 
 class CurrentSeconds:
     LIFETIME = timedelta(days=7)
-    
-    def set_current_seconds(value):
+
+    def set_current_seconds(self) -> None:
         global current_seconds
-        current_seconds = value
+        current_seconds = self
 
     def get_current_seconds():
         return current_seconds
@@ -64,7 +62,7 @@ class ImageCache:
         self._altered: bool = False
         # cleanup the URLs
         hash_counts: dict[ImageHash, int] = {}
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         for url, hash_dict in list(self._hashes.items()):
             img_hash = hash_dict["hash"]
             if img_hash not in hash_counts:
@@ -82,7 +80,9 @@ class ImageCache:
         if cleanup:
             # This cleanups the cache folder from unused PNG files
             orphans = [
-                file.name for file in CACHE_PATH.glob("*.png") if file.name not in hash_counts
+                file.name
+                for file in CACHE_PATH.glob("*.png")
+                if file.name not in hash_counts
             ]
             for filename in orphans:
                 CACHE_PATH.joinpath(filename).unlink(missing_ok=True)
@@ -92,12 +92,14 @@ class ImageCache:
             json_save(CACHE_DB, self._hashes, sort=True)
 
     def _new_expires(self) -> datetime:
-        return datetime.now(timezone.utc) + self.LIFETIME
+        return datetime.now(UTC) + self.LIFETIME
 
     def _hash(self, image: Image) -> ImageHash:
-        pixel_data = list(image.resize((10, 10), Image_module.LANCZOS).convert('L').getdata())
+        pixel_data = list(
+            image.resize((10, 10), Image_module.LANCZOS).convert("L").getdata(),
+        )
         avg_pixel = sum(pixel_data) / len(pixel_data)
-        bits = ''.join('1' if px >= avg_pixel else '0' for px in pixel_data)
+        bits = "".join("1" if px >= avg_pixel else "0" for px in pixel_data)
         return ImageHash(f"{int(bits, 2):x}.png")
 
     async def get(self, url: URLType, size: ImageSize | None = None) -> PhotoImage:
@@ -109,20 +111,17 @@ class ImageCache:
                 if img_hash in self._images:
                     image = self._images[img_hash]
                 else:
-                    try:
-                        self._images[img_hash] = image = Image_module.open(CACHE_PATH / img_hash)
-                    except FileNotFoundError:
-                        pass
+                    with contextlib.suppress(FileNotFoundError):
+                        self._images[img_hash] = image = Image_module.open(
+                            CACHE_PATH / img_hash,
+                        )
             if image is None:
                 async with self._twitch.request("GET", url) as response:
                     image = Image_module.open(io.BytesIO(await response.read()))
                 img_hash = self._hash(image)
                 self._images[img_hash] = image
                 image.save(CACHE_PATH / img_hash)
-                self._hashes[url] = {
-                    "hash": img_hash,
-                    "expires": self._new_expires()
-                }
+                self._hashes[url] = {"hash": img_hash, "expires": self._new_expires()}
         # NOTE: If self._hashes ever stops being updated in both above if cases,
         # this will need to be moved
         self._altered = True

@@ -1,22 +1,20 @@
 from __future__ import annotations
 
-import os
-import sys
-import random
 import logging
-from pathlib import Path
+import os
+import random
+import sys
 from copy import deepcopy
-from enum import Enum, auto
 from datetime import timedelta
-from typing import Any, Dict, Literal, NewType, TYPE_CHECKING
-
-from yarl import URL
+from enum import Enum, auto
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Literal, NewType
 
 from version import __version__
+from yarl import URL
 
 if TYPE_CHECKING:
-    from collections import abc  # noqa
-    from typing_extensions import TypeAlias
+    from collections import abc
 
 
 # True if we're running from a built EXE (or a Linux AppImage), False inside a dev build
@@ -32,12 +30,13 @@ else:
     # On Linux, the site-packages path includes a versioned 'pythonX.Y' folder part
     # The Lib folder is also spelled in lowercase: 'lib'
     version_info = sys.version_info
-    SYS_SITE_PACKAGES = f"lib/python{version_info.major}.{version_info.minor}/site-packages"
+    SYS_SITE_PACKAGES = (
+        f"lib/python{version_info.major}.{version_info.minor}/site-packages"
+    )
 
 
 def _resource_path(relative_path: Path | str) -> Path:
-    """
-    Get an absolute path to a bundled resource.
+    """Get an absolute path to a bundled resource.
 
     Works for dev and for PyInstaller.
     """
@@ -45,7 +44,7 @@ def _resource_path(relative_path: Path | str) -> Path:
         base_path = Path(sys.argv[0]).absolute().parent
     elif IS_PACKAGED:
         # PyInstaller's folder where the one-file app is unpacked
-        meipass: str = getattr(sys, "_MEIPASS")
+        meipass: str = sys._MEIPASS
         base_path = Path(meipass)
     else:
         base_path = WORKING_DIR
@@ -64,16 +63,19 @@ def _merge_vars(base_vars: JsonType, vars: JsonType) -> None:
                 # unspecified base, use the passed in var
                 base_vars[k] = v
             else:
-                raise RuntimeError(f"Var is a dict, base is not: '{k}'")
+                msg = f"Var is a dict, base is not: '{k}'"
+                raise RuntimeError(msg)
         elif isinstance(base_vars[k], dict):
-            raise RuntimeError(f"Base is a dict, var is not: '{k}'")
+            msg = f"Base is a dict, var is not: '{k}'"
+            raise RuntimeError(msg)
         else:
             # simple overwrite
             base_vars[k] = v
     # ensure none of the vars are ellipsis (unset value)
     for k, v in base_vars.items():
         if v is Ellipsis:
-            raise RuntimeError(f"Unspecified variable: '{k}'")
+            msg = f"Unspecified variable: '{k}'"
+            raise RuntimeError(msg)
 
 
 # Base Paths
@@ -100,9 +102,9 @@ CACHE_DB = Path(CACHE_PATH, "mapping.json")
 COOKIES_PATH = Path(WORKING_DIR, "cookies.jar")
 SETTINGS_PATH = Path(WORKING_DIR, "settings.json")
 # Typing
-JsonType = Dict[str, Any]
+JsonType = dict[str, Any]
 URLType = NewType("URLType", str)
-TopicProcess: TypeAlias = "abc.Callable[[int, JsonType], Any]"
+type TopicProcess = "abc.Callable[[int, JsonType], Any]"
 # Values
 BASE_TOPICS = 3
 MAX_WEBSOCKETS = 8
@@ -122,14 +124,23 @@ WINDOW_TITLE = f"Twitch Drops Miner v{__version__} (by DevilXD)"
 # Logging
 FILE_FORMATTER = logging.Formatter(
     "{asctime}.{msecs:03.0f}:\t{levelname:>7}:\t{message}",
-    style='{',
+    style="{",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
-OUTPUT_FORMATTER = logging.Formatter("{levelname}: {message}", style='{', datefmt="%H:%M:%S")
+OUTPUT_FORMATTER = logging.Formatter(
+    "{levelname}: {message}",
+    style="{",
+    datefmt="%H:%M:%S",
+)
 
 
 class ClientInfo:
-    def __init__(self, client_url: URL, client_id: str, user_agents: str | list[str]) -> None:
+    def __init__(
+        self,
+        client_url: URL,
+        client_id: str,
+        user_agents: str | list[str],
+    ) -> None:
         self.CLIENT_URL: URL = client_url
         self.CLIENT_ID: str = client_id
         self.USER_AGENT: str
@@ -183,7 +194,7 @@ class ClientType:
                 "Mozilla/5.0 (Linux; Android 13; LM-X420) AppleWebKit/537.36 "
                 "(KHTML, like Gecko) Chrome/119.0.6045.66 Mobile Safari/537.36"
             ),
-        ]
+        ],
     )
     ANDROID_APP = ClientInfo(
         URL("https://www.twitch.tv"),
@@ -214,15 +225,21 @@ class State(Enum):
 
 
 class GQLOperation(JsonType):
-    def __init__(self, name: str, sha256: str, *, variables: JsonType | None = None):
+    def __init__(
+        self,
+        name: str,
+        sha256: str,
+        *,
+        variables: JsonType | None = None,
+    ) -> None:
         super().__init__(
             operationName=name,
             extensions={
                 "persistedQuery": {
                     "version": 1,
                     "sha256Hash": sha256,
-                }
-            }
+                },
+            },
         )
         if variables is not None:
             self.__setitem__("variables", variables)
@@ -247,7 +264,7 @@ GQL_OPERATIONS: dict[str, GQLOperation] = {
             "login": "...",
             "isVod": False,
             "vodID": "",
-            "playerType": "site"
+            "playerType": "site",
         },
     ),
     # returns stream information for a particular channel
@@ -366,7 +383,7 @@ GQL_OPERATIONS: dict[str, GQLOperation] = {
         variables={
             "input": {
                 "id": "",  # ID of the notification to delete
-            }
+            },
         },
     ),
 }
@@ -379,7 +396,7 @@ class WebsocketTopic:
         topic_name: str,
         target_id: int,
         process: TopicProcess,
-    ):
+    ) -> None:
         assert isinstance(target_id, int)
         self._id: str = self.as_str(category, topic_name, target_id)
         self._target_id = target_id
@@ -387,7 +404,10 @@ class WebsocketTopic:
 
     @classmethod
     def as_str(
-        cls, category: Literal["User", "Channel"], topic_name: str, target_id: int
+        cls,
+        category: Literal["User", "Channel"],
+        topic_name: str,
+        target_id: int,
     ) -> str:
         return f"{WEBSOCKET_TOPICS[category][topic_name]}.{target_id}"
 

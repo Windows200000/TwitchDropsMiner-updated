@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from typing import Any, TypedDict, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, TypedDict
 
-from yarl import URL
-
+from constants import DEFAULT_LANG, SETTINGS_PATH
 from utils import json_load, json_save
-from constants import SETTINGS_PATH, DEFAULT_LANG
+from yarl import URL
 
 if TYPE_CHECKING:
     from main import ParsedArgs
@@ -58,7 +57,7 @@ class Settings:
 
     PASSTHROUGH = ("_settings", "_args", "_altered")
 
-    def __init__(self, args: ParsedArgs):
+    def __init__(self, args: ParsedArgs) -> None:
         self._settings: SettingsFile = json_load(SETTINGS_PATH, default_settings)
         self._args: ParsedArgs = args
         self._altered: bool = False
@@ -81,11 +80,13 @@ class Settings:
         elif name in self._settings:
             self._settings[name] = value  # type: ignore[literal-required]
             self._altered = True
-            return
-        raise TypeError(f"{name} is missing a custom setter")
+            return None
+        msg = f"{name} is missing a custom setter"
+        raise TypeError(msg)
 
     def __delattr__(self, name: str, /) -> None:
-        raise RuntimeError("settings can't be deleted")
+        msg = "settings can't be deleted"
+        raise RuntimeError(msg)
 
     def alter(self) -> None:
         self._altered = True

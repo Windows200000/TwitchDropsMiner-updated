@@ -1,42 +1,47 @@
 from __future__ import annotations
 
-import io
-import os
-import re
-import sys
-import json
-import random
-import string
 import asyncio
+import json
 import logging
+import os
+import random
+import re
+import string
+import sys
 import traceback
 import webbrowser
-import tkinter as tk
-from enum import Enum
-from pathlib import Path
-from functools import wraps
+from collections import OrderedDict, abc
+from collections.abc import Callable, Mapping, MutableSet
 from contextlib import suppress
-from functools import cached_property
-from datetime import datetime, timezone
-from collections import abc, OrderedDict
+from datetime import UTC, datetime
+from enum import Enum
+from functools import cached_property, wraps
 from typing import (
-    Any, Literal, MutableSet, Callable, Generic, Mapping, TypeVar, cast, TYPE_CHECKING
+    TYPE_CHECKING,
+    Any,
+    Generic,
+    Literal,
+    TypeVar,
+    cast,
 )
 
 import yarl
-from PIL.ImageTk import PhotoImage
-from PIL import Image as Image_module
-
-from constants import JsonType, IS_PACKAGED
-from exceptions import ExitRequest, ReloadRequest
+from constants import IS_PACKAGED, JsonType
 from constants import _resource_path as resource_path  # noqa
+from exceptions import ExitRequest, ReloadRequest
+from PIL import Image as Image_module
+from PIL.ImageTk import PhotoImage
 
 if TYPE_CHECKING:
+    import io
+    import tkinter as tk
+    from pathlib import Path
+
     from typing_extensions import ParamSpec
 else:
     # stub it
     class ParamSpec:
-        def __init__(*args, **kwargs):
+        def __init__(*args, **kwargs) -> None:
             pass
 
 
@@ -66,26 +71,29 @@ async def first_to_complete(coros: abc.Iterable[abc.Coroutine[Any, Any, _T]]) ->
     return await next(iter(done))
 
 
-def chunk(to_chunk: abc.Iterable[_T], chunk_length: int) -> abc.Generator[list[_T], None, None]:
+def chunk(
+    to_chunk: abc.Iterable[_T],
+    chunk_length: int,
+) -> abc.Generator[list[_T], None, None]:
     list_to_chunk = list(to_chunk)
     for i in range(0, len(list_to_chunk), chunk_length):
-        yield list_to_chunk[i:i + chunk_length]
+        yield list_to_chunk[i : i + chunk_length]
 
 
 def format_traceback(exc: BaseException, **kwargs: Any) -> str:
-    """
-    Like `traceback.print_exc` but returns a string. Uses the passed-in exception.
+    """Like `traceback.print_exc` but returns a string. Uses the passed-in exception.
     Any additional `**kwargs` are passed to the underlaying `traceback.format_exception`.
     """
-    return ''.join(traceback.format_exception(type(exc), exc, **kwargs))
+    return "".join(traceback.format_exception(type(exc), exc, **kwargs))
 
 
 def lock_file(path: Path) -> tuple[bool, io.TextIOWrapper]:
-    file = path.open('w', encoding="utf8")
-    file.write('ツ')
+    file = path.open("w", encoding="utf8")
+    file.write("ツ")
     file.flush()
     if sys.platform == "win32":
         import msvcrt
+
         try:
             # we need to lock at least one byte for this to work
             msvcrt.locking(file.fileno(), msvcrt.LK_NBLCK, max(path.stat().st_size, 1))
@@ -94,6 +102,7 @@ def lock_file(path: Path) -> tuple[bool, io.TextIOWrapper]:
         return True, file
     if sys.platform == "linux":
         import fcntl
+
         try:
             fcntl.lockf(file, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except Exception:
@@ -104,17 +113,19 @@ def lock_file(path: Path) -> tuple[bool, io.TextIOWrapper]:
 
 
 def json_minify(data: JsonType | list[JsonType]) -> str:
-    """
-    Returns minified JSON for payload usage.
-    """
-    return json.dumps(data, separators=(',', ':'))
+    """Returns minified JSON for payload usage."""
+    return json.dumps(data, separators=(",", ":"))
 
 
 def timestamp(string: str) -> datetime:
     try:
-        return datetime.strptime(string, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=timezone.utc)
+        return datetime.strptime(string, "%Y-%m-%dT%H:%M:%S.%fZ").replace(
+            tzinfo=UTC,
+        )
     except ValueError:
-        return datetime.strptime(string, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        return datetime.strptime(string, "%Y-%m-%dT%H:%M:%SZ").replace(
+            tzinfo=UTC,
+        )
 
 
 CHARS_ASCII = string.ascii_letters + string.digits
@@ -123,7 +134,7 @@ CHARS_HEX_UPPER = string.digits + "ABCDEF"
 
 
 def create_nonce(chars: str, length: int) -> str:
-    return ''.join(random.choices(chars, k=length))
+    return "".join(random.choices(chars, k=length))
 
 
 def deduplicate(iterable: abc.Iterable[_T]) -> list[_T]:
@@ -131,10 +142,10 @@ def deduplicate(iterable: abc.Iterable[_T]) -> list[_T]:
 
 
 def task_wrapper(
-    afunc: abc.Callable[_P, abc.Coroutine[Any, Any, _T]]
+    afunc: abc.Callable[_P, abc.Coroutine[Any, Any, _T]],
 ) -> abc.Callable[_P, abc.Coroutine[Any, Any, _T]]:
     @wraps(afunc)
-    async def wrapper(*args: _P.args, **kwargs: _P.kwargs):
+    async def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> None:
         try:
             await afunc(*args, **kwargs)
         except (ExitRequest, ReloadRequest):
@@ -142,13 +153,12 @@ def task_wrapper(
         except Exception:
             logger.exception("Exception in task")
             raise  # raise up to the wrapping task
+
     return wrapper
 
 
-def invalidate_cache(instance, *attrnames):
-    """
-    To be used to invalidate `functools.cached_property`.
-    """
+def invalidate_cache(instance, *attrnames) -> None:
+    """To be used to invalidate `functools.cached_property`."""
     for name in attrnames:
         with suppress(AttributeError):
             delattr(instance, name)
@@ -164,7 +174,7 @@ def _serialize(obj: Any) -> Any:
     elif isinstance(obj, datetime):
         if obj.tzinfo is None:
             # assume naive objects are UTC
-            obj = obj.replace(tzinfo=timezone.utc)
+            obj = obj.replace(tzinfo=UTC)
         d = obj.timestamp()
     elif isinstance(obj, yarl.URL):
         d = str(obj)
@@ -180,7 +190,7 @@ def _serialize(obj: Any) -> Any:
 _MISSING = object()
 SERIALIZE_ENV: dict[str, Callable[[Any], object]] = {
     "set": set,
-    "datetime": lambda d: datetime.fromtimestamp(d, timezone.utc),
+    "datetime": lambda d: datetime.fromtimestamp(d, UTC),
     "URL": yarl.URL,
 }
 
@@ -223,7 +233,7 @@ def merge_json(obj: JsonType, template: Mapping[Any, Any]) -> None:
             # template is a dict, object is not: overwrite from template
             obj[k] = template[k]
     # ensure the object is not missing any keys
-    for k in template.keys():
+    for k in template:
         if k not in obj:
             obj[k] = template[k]
 
@@ -231,8 +241,10 @@ def merge_json(obj: JsonType, template: Mapping[Any, Any]) -> None:
 def json_load(path: Path, defaults: _JSON_T, *, merge: bool = True) -> _JSON_T:
     defaults_dict: JsonType = dict(defaults)
     if path.exists():
-        with open(path, 'r', encoding="utf8") as file:
-            combined: JsonType = _remove_missing(json.load(file, object_hook=_deserialize))
+        with open(path, encoding="utf8") as file:
+            combined: JsonType = _remove_missing(
+                json.load(file, object_hook=_deserialize),
+            )
         if merge:
             merge_json(combined, defaults_dict)
     else:
@@ -241,11 +253,11 @@ def json_load(path: Path, defaults: _JSON_T, *, merge: bool = True) -> _JSON_T:
 
 
 def json_save(path: Path, contents: Mapping[Any, Any], *, sort: bool = False) -> None:
-    with open(path, 'w', encoding="utf8") as file:
+    with open(path, "w", encoding="utf8") as file:
         json.dump(contents, file, default=_serialize, sort_keys=sort, indent=4)
 
 
-def webopen(url: str):
+def webopen(url: str) -> None:
     if IS_PACKAGED and sys.platform == "linux":
         # https://pyinstaller.org/en/stable/
         # runtime-information.html#ld-library-path-libpath-considerations
@@ -278,9 +290,10 @@ class ExponentialBackoff:
         variance: float | tuple[float, float] = 0.1,
         shift: float = 0,
         maximum: float = 300,
-    ):
+    ) -> None:
         if base <= 1:
-            raise ValueError("Base has to be greater than 1")
+            msg = "Base has to be greater than 1"
+            raise ValueError(msg)
         self.steps: int = 0
         self.base: float = float(base)
         self.shift: float = float(shift)
@@ -319,12 +332,14 @@ class ExponentialBackoff:
 
 
 class OrderedSet(MutableSet[_T]):
-    """
-    Implementation of a set that preserves insertion order,
+    """Implementation of a set that preserves insertion order,
     based on OrderedDict with values set to None.
     """
-    def __init__(self, iterable: abc.Iterable[_T] = [], /):
-        self._items: OrderedDict[_T, None] = OrderedDict((item, None) for item in iterable)
+
+    def __init__(self, iterable: abc.Iterable[_T] = [], /) -> None:
+        self._items: OrderedDict[_T, None] = OrderedDict(
+            (item, None) for item in iterable
+        )
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}([{', '.join(map(repr, self._items))}])"
@@ -359,7 +374,7 @@ class OrderedSet(MutableSet[_T]):
 
 
 class AwaitableValue(Generic[_T]):
-    def __init__(self):
+    def __init__(self) -> None:
         self._value: _T
         self._event = asyncio.Event()
 
@@ -387,7 +402,7 @@ class AwaitableValue(Generic[_T]):
 
 
 class Game:
-    def __init__(self, data: JsonType):
+    def __init__(self, data: JsonType) -> None:
         self.id: int = int(data["id"])
         self.name: str = data.get("displayName") or data["name"]
         if "slug" in data:
@@ -409,13 +424,10 @@ class Game:
 
     @cached_property
     def slug(self) -> str:
-        """
-        Converts the game name into a slug, useable for the GQL API.
-        """
+        """Converts the game name into a slug, useable for the GQL API."""
         # remove specific characters
-        slug_text = re.sub(r'\'', '', self.name.lower())
+        slug_text = re.sub(r"\'", "", self.name.lower())
         # remove non alpha-numeric characters
-        slug_text = re.sub(r'\W+', '-', slug_text)
+        slug_text = re.sub(r"\W+", "-", slug_text)
         # strip and collapse dashes
-        slug_text = re.sub(r'-{2,}', '-', slug_text.strip('-'))
-        return slug_text
+        return re.sub(r"-{2,}", "-", slug_text.strip("-"))

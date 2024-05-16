@@ -1,25 +1,24 @@
 from __future__ import annotations
 
+import asyncio
+import json
+import logging
 import re
 import sys
-import json
-import asyncio
-import logging
-from time import time
-from itertools import chain
+from collections import OrderedDict, abc, deque
+from contextlib import asynccontextmanager, suppress
+from datetime import UTC, datetime, timedelta
 from functools import partial
-from collections import abc, deque, OrderedDict
-from datetime import datetime, timedelta, timezone
-from contextlib import suppress, asynccontextmanager
-from typing import Any, Literal, Final, NoReturn, overload, cast, TYPE_CHECKING
+from itertools import chain
+from time import time
+from typing import TYPE_CHECKING, Any, Final, Literal, NoReturn, cast, overload
 
 if sys.platform == "win32":
     from subprocess import CREATE_NO_WINDOW
 
 import aiohttp
-from yarl import URL
+
 try:
-    from seleniumwire.request import Request
     from selenium.common.exceptions import WebDriverException
     from seleniumwire.undetected_chromedriver import Chrome, ChromeOptions
 except ModuleNotFoundError:
@@ -27,56 +26,61 @@ except ModuleNotFoundError:
     pass
 except ImportError as exc:
     if "_brotli" in exc.msg:
-        raise ImportError(
+        msg = (
             "You need to install Visual C++ Redist (x86 and x64): "
             "https://support.microsoft.com/en-gb/help/2977003/"
             "the-latest-supported-visual-c-downloads"
+        )
+        raise ImportError(
+            msg,
         ) from exc
     raise
 
 from cache import CurrentSeconds
-from translate import _
-from gui import GUIManager
 from channel import Channel
-from websocket import WebsocketPool
-from inventory import DropsCampaign
-from exceptions import (
-    MinerException,
-    CaptchaRequired,
-    ExitRequest,
-    LoginException,
-    ReloadRequest,
-    RequestInvalid,
-)
-from utils import (
-    CHARS_HEX_LOWER,
-    chunk,
-    timestamp,
-    create_nonce,
-    task_wrapper,
-    first_to_complete,
-    OrderedSet,
-    AwaitableValue,
-    ExponentialBackoff,
-)
 from constants import (
     CALL,
     COOKIES_PATH,
     GQL_OPERATIONS,
     MAX_CHANNELS,
     WATCH_INTERVAL,
-    State,
     ClientType,
+    State,
     WebsocketTopic,
 )
+from exceptions import (
+    CaptchaRequired,
+    ExitRequest,
+    LoginException,
+    MinerException,
+    ReloadRequest,
+    RequestInvalid,
+)
+from gui import GUIManager
+from inventory import DropsCampaign
+from translate import _
+from utils import (
+    CHARS_HEX_LOWER,
+    AwaitableValue,
+    ExponentialBackoff,
+    OrderedSet,
+    chunk,
+    create_nonce,
+    first_to_complete,
+    task_wrapper,
+    timestamp,
+)
+from websocket import WebsocketPool
 
 if TYPE_CHECKING:
-    from utils import Game
-    from gui import LoginForm
     from channel import Stream
-    from settings import Settings
+    from constants import ClientInfo, GQLOperation, JsonType
+    from gui import LoginForm
     from inventory import TimedDrop
-    from constants import ClientInfo, JsonType, GQLOperation
+    from seleniumwire.request import Request
+    from settings import Settings
+    from utils import Game
+    from yarl import URL
 
 
 logger = logging.getLogger("TwitchDrops")
@@ -91,11 +95,12 @@ class SkipExtraJsonDecoder(json.JSONDecoder):
 
 
 # CLIENT_URL, CLIENT_ID, USER_AGENT = ClientType.MOBILE_WEB
-SAFE_LOADS = lambda s: json.loads(s, cls=SkipExtraJsonDecoder)
+def SAFE_LOADS(s):
+    return json.loads(s, cls=SkipExtraJsonDecoder)
 
 
 class _AuthState:
-    def __init__(self, twitch: Twitch):
+    def __init__(self, twitch: Twitch) -> None:
         self._twitch: Twitch = twitch
         self._lock = asyncio.Lock()
         self._logged_in = asyncio.Event()
@@ -111,7 +116,7 @@ class _AuthState:
     def integrity_expired(self) -> bool:
         return (
             not hasattr(self, "integrity_expires")
-            or datetime.now(timezone.utc) >= self.integrity_expires
+            or datetime.now(UTC) >= self.integrity_expires
         )
 
     def _hasattrs(self, *attrs: str) -> bool:
@@ -170,7 +175,9 @@ class _AuthState:
                     try:
                         wire_options: dict[str, Any] = {"proxy": {}}
                         if self._twitch.settings.proxy:
-                            wire_options["proxy"]["http"] = str(self._twitch.settings.proxy)
+                            wire_options["proxy"]["http"] = str(
+                                self._twitch.settings.proxy,
+                            )
                         driver_coro = loop.run_in_executor(
                             None,
                             lambda: Chrome(
@@ -180,7 +187,7 @@ class _AuthState:
                                 version_main=version_main,
                                 seleniumwire_options=wire_options,
                                 service_creationflags=CREATE_NO_WINDOW,
-                            )
+                            ),
                         )
                         driver = await coro_unless_closed(driver_coro)
                         break
@@ -191,31 +198,40 @@ class _AuthState:
                             and (
                                 match := re.search(
                                     (
-                                        r'Chrome version ([\d]+)\n'
-                                        r'Current browser version is ((\d+)\.[\d.]+)'
+                                        r"Chrome version ([\d]+)\n"
+                                        r"Current browser version is ((\d+)\.[\d.]+)"
                                     ),
                                     message,
                                 )
-                            ) is not None
+                            )
+                            is not None
                         ):
                             if not attempt:
                                 version_main = int(match.group(3))
                                 continue
                             else:
-                                raise MinerException(
+                                msg = (
                                     "Your Chrome browser is out of date\n"
                                     f"Required version: {match.group(1)}\n"
                                     f"Current version: {match.group(2)}"
+                                )
+                                raise MinerException(
+                                    msg,
                                 ) from None
+                        msg = "An error occured while boostrapping the Chrome browser"
                         raise MinerException(
-                            "An error occured while boostrapping the Chrome browser"
+                            msg,
                         ) from exc
                 assert driver is not None
                 driver.request_interceptor = self.interceptor
                 # driver.set_page_load_timeout(30)
                 # page_coro = loop.run_in_executor(None, driver.get, "https://twitch.tv")
                 # await coro_unless_closed(page_coro)
-                page_coro = loop.run_in_executor(None, driver.get, "https://twitch.tv/login")
+                page_coro = loop.run_in_executor(
+                    None,
+                    driver.get,
+                    "https://twitch.tv/login",
+                )
                 await coro_unless_closed(page_coro)
 
                 # auto login
@@ -232,15 +248,17 @@ class _AuthState:
 
                 # wait for the user to navigate away from the URL, indicating successful login
                 # alternatively, they can press on the login button again
-                async def url_waiter(driver=driver):
+                async def url_waiter(driver=driver) -> None:
                     while driver.current_url != "https://www.twitch.tv/?no-reload=true":
                         await asyncio.sleep(0.5)
 
                 gui_print(_("login", "chrome", "login_to_complete"))
-                await first_to_complete([
-                    url_waiter(),
-                    coro_unless_closed(login_form.wait_for_login_press()),
-                ])
+                await first_to_complete(
+                    [
+                        url_waiter(),
+                        coro_unless_closed(login_form.wait_for_login_press()),
+                    ],
+                )
 
                 # cookies = [
                 #     {
@@ -257,7 +275,10 @@ class _AuthState:
                 # ]
                 cookies = driver.get_cookies()
                 for cookie in cookies:
-                    if "twitch.tv" in cookie["domain"] and cookie["name"] == "auth-token":
+                    if (
+                        "twitch.tv" in cookie["domain"]
+                        and cookie["name"] == "auth-token"
+                    ):
                         self.access_token = cookie["value"]
                         break
                 else:
@@ -296,7 +317,10 @@ class _AuthState:
         while True:
             try:
                 async with self._twitch.request(
-                    "POST", "https://id.twitch.tv/oauth2/device", headers=headers, data=payload
+                    "POST",
+                    "https://id.twitch.tv/oauth2/device",
+                    headers=headers,
+                    data=payload,
                 ) as response:
                     # {
                     #     "device_code": "40 chars [A-Za-z0-9]",
@@ -305,7 +329,7 @@ class _AuthState:
                     #     "user_code": "8 chars [A-Z]",
                     #     "verification_uri": "https://www.twitch.tv/activate"
                     # }
-                    now = datetime.now(timezone.utc)
+                    now = datetime.now(UTC)
                     response_json: JsonType = await response.json()
                     device_code: str = response_json["device_code"]
                     user_code: str = response_json["user_code"]
@@ -352,7 +376,7 @@ class _AuthState:
         login_form: LoginForm = self._twitch.gui.login
         client_info: ClientInfo = self._twitch._client_type
 
-        token_kind: str = ''
+        token_kind: str = ""
         use_chrome: bool = False
         payload: JsonType = {
             # username and password are added later
@@ -398,7 +422,10 @@ class _AuthState:
                 # "X-Device-Id": ''.join(random.choices('0123456789abcdef', k=32)),
             }
             async with self._twitch.request(
-                "POST", "https://passport.twitch.tv/login", headers=headers, json=payload
+                "POST",
+                "https://passport.twitch.tv/login",
+                headers=headers,
+                json=payload,
             ) as response:
                 login_response: JsonType = await response.json(loads=SAFE_LOADS)
 
@@ -415,7 +442,9 @@ class _AuthState:
                     use_chrome = True
                     break
                 elif error_code in (2004, 3001):
-                    logger.info("3001: Login failed due to incorrect username or password")
+                    logger.info(
+                        "3001: Login failed due to incorrect username or password",
+                    )
                     gui_print(_("login", "incorrect_login_pass"))
                     if error_code == 2004:
                         # invalid username
@@ -479,14 +508,19 @@ class _AuthState:
 
         if use_chrome:
             # await self._chrome_login()
-            raise CaptchaRequired()
+            raise CaptchaRequired
 
         if hasattr(self, "access_token"):
             return self.access_token
-        raise MinerException("Login flow finished without setting the access token")
+        msg = "Login flow finished without setting the access token"
+        raise MinerException(msg)
 
     def headers(
-        self, *, user_agent: str = '', gql: bool = False, integrity: bool = False
+        self,
+        *,
+        user_agent: str = "",
+        gql: bool = False,
+        integrity: bool = False,
     ) -> JsonType:
         client_info: ClientInfo = self._twitch._client_type
         headers = {
@@ -502,7 +536,7 @@ class _AuthState:
         if hasattr(self, "session_id"):
             headers["Client-Session-Id"] = self.session_id
         # if hasattr(self, "client_version"):
-            # headers["Client-Version"] = self.client_version
+        # headers["Client-Version"] = self.client_version
         if hasattr(self, "device_id"):
             headers["X-Device-Id"] = self.device_id
         if gql:
@@ -513,11 +547,11 @@ class _AuthState:
             headers["Client-Integrity"] = self.integrity_token
         return headers
 
-    async def validate(self):
+    async def validate(self) -> None:
         async with self._lock:
             await self._validate()
 
-    async def _validate(self):
+    async def _validate(self) -> None:
         if not hasattr(self, "session_id"):
             self.session_id = create_nonce(CHARS_HEX_LOWER, 16)
         if not self._hasattrs("device_id", "access_token", "user_id"):
@@ -526,7 +560,9 @@ class _AuthState:
             client_info: ClientInfo = self._twitch._client_type
         if not self._hasattrs("device_id"):
             async with self._twitch.request(
-                "GET", client_info.CLIENT_URL, headers=self.headers()
+                "GET",
+                client_info.CLIENT_URL,
+                headers=self.headers(),
             ) as response:
                 page_html = await response.text("utf8")
                 assert page_html is not None
@@ -542,7 +578,7 @@ class _AuthState:
             login_form: LoginForm = self._twitch.gui.login
             logger.info("Checking login")
             login_form.update(_("gui", "login", "logging_in"), None)
-            for attempt in range(2):
+            for _attempt in range(2):
                 cookie = jar.filter_cookies(client_info.CLIENT_URL)
                 if "auth-token" not in cookie:
                     self.access_token = await self._oauth_login()
@@ -554,7 +590,7 @@ class _AuthState:
                 async with self._twitch.request(
                     "GET",
                     "https://id.twitch.tv/oauth2/validate",
-                    headers={"Authorization": f"OAuth {self.access_token}"}
+                    headers={"Authorization": f"OAuth {self.access_token}"},
                 ) as response:
                     status = response.status
                     if status == 401:
@@ -567,9 +603,13 @@ class _AuthState:
                         validate_response = await response.json()
                         break
             else:
-                raise RuntimeError("Login verification failure")
+                msg = "Login verification failure"
+                raise RuntimeError(msg)
             if validate_response["client_id"] != client_info.CLIENT_ID:
-                raise MinerException("You're using an old cookie file, please generate a new one.")
+                msg = "You're using an old cookie file, please generate a new one."
+                raise MinerException(
+                    msg,
+                )
             self.user_id = int(validate_response["user_id"])
             cookie["persistent"] = str(self.user_id)
             logger.info(f"Login successful, user ID: {self.user_id}")
@@ -604,16 +644,16 @@ class _AuthState:
         #         await asyncio.sleep(8)
         self._logged_in.set()
 
-    def invalidate(self, *, auth: bool = False, integrity: bool = False):
+    def invalidate(self, *, auth: bool = False, integrity: bool = False) -> None:
         if auth:
             self._delattrs("access_token")
         if integrity:
             self._delattrs("client_version")
-            self.integrity_expires = datetime.now(timezone.utc)
+            self.integrity_expires = datetime.now(UTC)
 
 
 class Twitch:
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings) -> None:
         self.settings: Settings = settings
         # State management
         self._state: State = State.IDLE
@@ -642,7 +682,8 @@ class Twitch:
     async def get_session(self) -> aiohttp.ClientSession:
         if (session := self._session) is not None:
             if session.closed:
-                raise RuntimeError("Session is closed")
+                msg = "Session is closed"
+                raise RuntimeError(msg)
             return session
         # load in cookies
         cookie_jar = aiohttp.CookieJar()
@@ -661,8 +702,8 @@ class Twitch:
         elif connection_quality > 6:
             connection_quality = self.settings.connection_quality = 6
         timeout = aiohttp.ClientTimeout(
-            sock_connect=5*connection_quality,
-            total=10*connection_quality,
+            sock_connect=5 * connection_quality,
+            total=10 * connection_quality,
         )
         # create session, limited to 50 connections at maximum
         connector = aiohttp.TCPConnector(limit=50)
@@ -715,36 +756,29 @@ class Twitch:
         # perfect for GUI usage
         return partial(self.change_state, state)
 
-    def close(self):
-        """
-        Called when the application is requested to close by the user,
+    def close(self) -> None:
+        """Called when the application is requested to close by the user,
         usually by the console or application window being closed.
         """
         self.change_state(State.EXIT)
 
-    def prevent_close(self):
-        """
-        Called when the application window has to be prevented from closing, even after the user
+    def prevent_close(self) -> None:
+        """Called when the application window has to be prevented from closing, even after the user
         closes it with X. Usually used solely to display tracebacks from the closing sequence.
         """
         self.gui.prevent_close()
 
-    def print(self, message: str):
-        """
-        Can be used to print messages within the GUI.
-        """
+    def print(self, message: str) -> None:
+        """Can be used to print messages within the GUI."""
         self.gui.print(message)
 
     def save(self, *, force: bool = False) -> None:
-        """
-        Saves the application state.
-        """
+        """Saves the application state."""
         self.gui.save(force=force)
         self.settings.save(force=force)
 
     def get_priority(self, channel: Channel) -> int:
-        """
-        Return a priority number for a given channel.
+        """Return a priority number for a given channel.
 
         Higher number, higher priority.
         Priority 0 is given to channels streaming a game not on the priority list.
@@ -763,7 +797,7 @@ class Twitch:
             return viewers
         return -1
 
-    async def run(self):
+    async def run(self) -> None:
         while True:
             try:
                 await self._run()
@@ -775,9 +809,8 @@ class Twitch:
             except aiohttp.ContentTypeError as exc:
                 raise MinerException(_("login", "unexpected_content")) from exc
 
-    async def _run(self):
-        """
-        Main method that runs the whole client.
+    async def _run(self) -> None:
+        """Main method that runs the whole client.
 
         Here, we manage several things, specifically:
         • Fetching the drops inventory to make sure that everything we can claim, is claimed
@@ -792,13 +825,23 @@ class Twitch:
             self._watching_task.cancel()
         self._watching_task = asyncio.create_task(self._watch_loop())
         # Add default topics
-        self.websocket.add_topics([
-            WebsocketTopic("User", "Drops", auth_state.user_id, self.process_drops),
-            WebsocketTopic("User", "CommunityPoints", auth_state.user_id, self.process_points),
-            WebsocketTopic(
-                "User", "Notifications", auth_state.user_id, self.process_notifications
-            ),
-        ])
+        self.websocket.add_topics(
+            [
+                WebsocketTopic("User", "Drops", auth_state.user_id, self.process_drops),
+                WebsocketTopic(
+                    "User",
+                    "CommunityPoints",
+                    auth_state.user_id,
+                    self.process_points,
+                ),
+                WebsocketTopic(
+                    "User",
+                    "Notifications",
+                    auth_state.user_id,
+                    self.process_notifications,
+                ),
+            ],
+        )
         full_cleanup: bool = False
         channels: Final[OrderedDict[int, Channel]] = self.channels
         self.change_state(State.INVENTORY_FETCH)
@@ -812,7 +855,7 @@ class Twitch:
                 # ensure the websocket is running
                 await self.websocket.start()
                 await self.fetch_inventory()
-                self.gui.set_games(set(campaign.game for campaign in self.inventory))
+                self.gui.set_games({campaign.game for campaign in self.inventory})
                 # Save state on every inventory fetch
                 self.save()
                 self.change_state(State.GAMES_UPDATE)
@@ -829,7 +872,7 @@ class Twitch:
                 exclude = self.settings.exclude
                 priority = self.settings.priority
                 priority_only = self.settings.priority_only
-                next_hour = datetime.now(timezone.utc) + timedelta(hours=1)
+                next_hour = datetime.now(UTC) + timedelta(hours=1)
                 for campaign in self.inventory:
                     game = campaign.game
                     if (
@@ -860,7 +903,10 @@ class Twitch:
                             and (
                                 channel.offline  # and are offline
                                 # or online but aren't streaming the game we want anymore
-                                or (channel.game is None or channel.game not in self.wanted_games)
+                                or (
+                                    channel.game is None
+                                    or channel.game not in self.wanted_games
+                                )
                             )
                         )
                     ]
@@ -869,10 +915,14 @@ class Twitch:
                     to_remove_topics: list[str] = []
                     for channel in to_remove_channels:
                         to_remove_topics.append(
-                            WebsocketTopic.as_str("Channel", "StreamState", channel.id)
+                            WebsocketTopic.as_str("Channel", "StreamState", channel.id),
                         )
                         to_remove_topics.append(
-                            WebsocketTopic.as_str("Channel", "StreamUpdate", channel.id)
+                            WebsocketTopic.as_str(
+                                "Channel",
+                                "StreamUpdate",
+                                channel.id,
+                            ),
                         )
                     self.websocket.remove_topics(to_remove_topics)
                     for channel in to_remove_channels:
@@ -896,11 +946,10 @@ class Twitch:
                 # NOTE: we use another set so that we can set them online separately
                 no_acl: set[Game] = set()
                 acl_channels: OrderedSet[Channel] = OrderedSet()
-                next_hour = datetime.now(timezone.utc) + timedelta(hours=1)
+                next_hour = datetime.now(UTC) + timedelta(hours=1)
                 for campaign in self.inventory:
-                    if (
-                        campaign.game in self.wanted_games
-                        and campaign.can_earn_within(next_hour)
+                    if campaign.game in self.wanted_games and campaign.can_earn_within(
+                        next_hour,
                     ):
                         if campaign.allowed_channels:
                             acl_channels.update(campaign.allowed_channels)
@@ -911,7 +960,10 @@ class Twitch:
                 # use the other set to set them online if possible
                 if acl_channels:
                     await asyncio.gather(
-                        *(channel.update_stream(trigger_events=False) for channel in acl_channels)
+                        *(
+                            channel.update_stream(trigger_events=False)
+                            for channel in acl_channels
+                        ),
                     )
                 # finally, add them as new channels
                 new_channels.update(acl_channels)
@@ -922,7 +974,9 @@ class Twitch:
                 # sort them descending by viewers, by priority and by game priority
                 # NOTE: We can drop OrderedSet now because there's no more channels being added
                 ordered_channels: list[Channel] = sorted(
-                    new_channels, key=self._viewers_key, reverse=True
+                    new_channels,
+                    key=self._viewers_key,
+                    reverse=True,
                 )
                 ordered_channels.sort(key=lambda ch: ch.acl_based, reverse=True)
                 ordered_channels.sort(key=self.get_priority, reverse=True)
@@ -937,10 +991,14 @@ class Twitch:
                     to_remove_topics = []
                     for channel in to_remove_channels:
                         to_remove_topics.append(
-                            WebsocketTopic.as_str("Channel", "StreamState", channel.id)
+                            WebsocketTopic.as_str("Channel", "StreamState", channel.id),
                         )
                         to_remove_topics.append(
-                            WebsocketTopic.as_str("Channel", "StreamUpdate", channel.id)
+                            WebsocketTopic.as_str(
+                                "Channel",
+                                "StreamUpdate",
+                                channel.id,
+                            ),
                         )
                     self.websocket.remove_topics(to_remove_topics)
                     del to_remove_channels, to_remove_topics
@@ -953,13 +1011,19 @@ class Twitch:
                 for channel_id in channels:
                     to_add_topics.append(
                         WebsocketTopic(
-                            "Channel", "StreamState", channel_id, self.process_stream_state
-                        )
+                            "Channel",
+                            "StreamState",
+                            channel_id,
+                            self.process_stream_state,
+                        ),
                     )
                     to_add_topics.append(
                         WebsocketTopic(
-                            "Channel", "StreamUpdate", channel_id, self.process_stream_update
-                        )
+                            "Channel",
+                            "StreamUpdate",
+                            channel_id,
+                            self.process_stream_update,
+                        ),
                     )
                 self.websocket.add_topics(to_add_topics)
                 # relink watching channel after cleanup,
@@ -1005,7 +1069,11 @@ class Twitch:
                     # for a switch (including the watching one)
                     # NOTE: we need to sort the channels every time because one channel
                     # can end up streaming any game - channels aren't game-tied
-                    for channel in sorted(channels.values(), key=self.get_priority, reverse=True):
+                    for channel in sorted(
+                        channels.values(),
+                        key=self.get_priority,
+                        reverse=True,
+                    ):
                         if self.can_watch(channel) and self.should_switch(channel):
                             new_watching = channel
                             break
@@ -1018,7 +1086,7 @@ class Twitch:
                 elif watching_channel is not None:
                     # otherwise, continue watching what we had before
                     self.gui.status.update(
-                        _("status", "watching").format(channel=watching_channel.name)
+                        _("status", "watching").format(channel=watching_channel.name),
                     )
                     # break the state change chain by clearing the flag
                     self._state_change.clear()
@@ -1055,7 +1123,7 @@ class Twitch:
             use_active: bool = False
             try:
                 handled: bool = await asyncio.wait_for(self._drop_update, timeout=10)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # there was no websocket update within 10s
                 handled = False
                 use_active = True
@@ -1066,9 +1134,9 @@ class Twitch:
                 if not use_active:
                     # we need to use GQL to get the current progress
                     context = await self.gql_request(GQL_OPERATIONS["CurrentDrop"])
-                    drop_data: JsonType | None = (
-                        context["data"]["currentUser"]["dropCurrentSession"]
-                    )
+                    drop_data: JsonType | None = context["data"]["currentUser"][
+                        "dropCurrentSession"
+                    ]
                     if drop_data is not None:
                         drop = self._drops.get(drop_data["dropID"])
                         if drop is None:
@@ -1083,7 +1151,10 @@ class Twitch:
                                 f"{drop.name} ({drop.campaign.game}, "
                                 f"{drop.current_minutes}/{drop.required_minutes})"
                             )
-                            logger.log(CALL, f"Current drop returned mismach: {drop_text}")
+                            logger.log(
+                                CALL,
+                                f"Current drop returned mismach: {drop_text}",
+                            )
                         else:
                             drop.update_minutes(drop_data["currentMinutesWatched"])
                             drop.display()
@@ -1110,7 +1181,10 @@ class Twitch:
                                 f"{drop.name} ({drop.campaign.game}, "
                                 f"{drop.current_minutes}/{drop.required_minutes})"
                             )
-                        logger.log(CALL, f"Drop progress from active search: {drop_text}")
+                        logger.log(
+                            CALL,
+                            f"Drop progress from active search: {drop_text}",
+                        )
                     else:
                         logger.log(CALL, "No active drop could be determined")
             await self._watch_sleep(last_watch + interval - time())
@@ -1119,16 +1193,19 @@ class Twitch:
     async def _maintenance_task(self) -> None:
         claim_period = timedelta(minutes=30)
         max_period = timedelta(hours=1)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         next_period = now + max_period
         while True:
             # exit if there's no need to repeat the loop
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             if now >= next_period:
                 break
             next_trigger = min(now + claim_period, next_period)
             trigger_cleanup = False
-            while self._mnt_triggers and (switch_trigger := self._mnt_triggers[0]) <= next_trigger:
+            while (
+                self._mnt_triggers
+                and (switch_trigger := self._mnt_triggers[0]) <= next_trigger
+            ):
                 trigger_cleanup = True
                 self._mnt_triggers.popleft()
                 next_trigger = switch_trigger
@@ -1143,11 +1220,11 @@ class Twitch:
                 (
                     "Maintenance task waiting until: "
                     f"{next_trigger.astimezone().strftime('%X')} ({trigger_type})"
-                )
+                ),
             )
             await asyncio.sleep((next_trigger - now).total_seconds())
             # exit after waiting, before the actions
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             if now >= next_period:
                 break
             if trigger_cleanup:
@@ -1165,9 +1242,7 @@ class Twitch:
         self.change_state(State.INVENTORY_FETCH)
 
     def can_watch(self, channel: Channel) -> bool:
-        """
-        Determines if the given channel qualifies as a watching candidate.
-        """
+        """Determines if the given channel qualifies as a watching candidate."""
         if not self.wanted_games:
             return False
         # exit early if
@@ -1175,7 +1250,8 @@ class Twitch:
             not channel.online  # stream is offline
             # or not channel.drops_enabled  # drops aren't enabled
             # there's no game or it's not one of the games we've selected
-            or (game := channel.game) is None or game not in self.wanted_games
+            or (game := channel.game) is None
+            or game not in self.wanted_games
         ):
             return False
         # check if we can progress any campaign for the played game
@@ -1185,9 +1261,7 @@ class Twitch:
         return False
 
     def should_switch(self, channel: Channel) -> bool:
-        """
-        Determines if the given channel qualifies as a switch candidate.
-        """
+        """Determines if the given channel qualifies as a switch candidate."""
         watching_channel = self.watching_channel.get_with_default(None)
         if watching_channel is None:
             return True
@@ -1201,7 +1275,7 @@ class Twitch:
             and channel.acl_based > watching_channel.acl_based
         )
 
-    def watch(self, channel: Channel, *, update_status: bool = True):
+    def watch(self, channel: Channel, *, update_status: bool = True) -> None:
         self.gui.channels.set_watching(channel)
         self.watching_channel.set(channel)
         if update_status:
@@ -1209,21 +1283,23 @@ class Twitch:
             self.print(status_text)
             self.gui.status.update(status_text)
 
-    def stop_watching(self):
+    def stop_watching(self) -> None:
         self.gui.clear_drop()
         self.watching_channel.clear()
         self.gui.channels.clear_watching()
 
-    def restart_watching(self):
+    def restart_watching(self) -> None:
         self.gui.progress.stop_timer()
         self._watching_restart.set()
 
     @task_wrapper
-    async def process_stream_state(self, channel_id: int, message: JsonType):
+    async def process_stream_state(self, channel_id: int, message: JsonType) -> None:
         msg_type = message["type"]
         channel = self.channels.get(channel_id)
         if channel is None:
-            logger.error(f"Stream state change for a non-existing channel: {channel_id}")
+            logger.error(
+                f"Stream state change for a non-existing channel: {channel_id}",
+            )
             return
         if msg_type == "viewcount":
             if not channel.online:
@@ -1245,7 +1321,7 @@ class Twitch:
             logger.warning(f"Unknown stream state: {msg_type}")
 
     @task_wrapper
-    async def process_stream_update(self, channel_id: int, message: JsonType):
+    async def process_stream_update(self, channel_id: int, message: JsonType) -> None:
         # message = {
         #     "channel_id": "12345678",
         #     "type": "broadcast_settings_update",
@@ -1259,12 +1335,14 @@ class Twitch:
         # }
         channel = self.channels.get(channel_id)
         if channel is None:
-            logger.error(f"Broadcast settings update for a non-existing channel: {channel_id}")
+            logger.error(
+                f"Broadcast settings update for a non-existing channel: {channel_id}",
+            )
             return
         if message["old_game"] != message["game"]:
             game_change = f", game changed: {message['old_game']} -> {message['game']}"
         else:
-            game_change = ''
+            game_change = ""
         logger.log(CALL, f"Channel update from websocket: {channel.name}{game_change}")
         # There's no information about channel tags here, but this event is triggered
         # when the tags change. We can use this to just update the stream data after the change.
@@ -1273,10 +1351,12 @@ class Twitch:
         channel.check_online()
 
     def on_channel_update(
-        self, channel: Channel, stream_before: Stream | None, stream_after: Stream | None
-    ):
-        """
-        Called by a Channel when it's status is updated (ONLINE, OFFLINE, title/tags change).
+        self,
+        channel: Channel,
+        stream_before: Stream | None,
+        stream_after: Stream | None,
+    ) -> None:
+        """Called by a Channel when it's status is updated (ONLINE, OFFLINE, title/tags change).
 
         NOTE: 'stream_before' gets dealocated once this function finishes.
         """
@@ -1298,8 +1378,9 @@ class Twitch:
             watching_channel = self.watching_channel.get_with_default(None)
             if (
                 watching_channel is not None
-                and watching_channel == channel  # the watching channel was the one updated
-                and not self.can_watch(channel)   # we can't watch it anymore
+                and watching_channel
+                == channel  # the watching channel was the one updated
+                and not self.can_watch(channel)  # we can't watch it anymore
             ):
                 # NOTE: In these cases, channel was the watching channel
                 if stream_after is None:
@@ -1310,7 +1391,7 @@ class Twitch:
                     logger.info(
                         f"{channel.name} status has been updated, switching... "
                         f"(🎁: {stream_before.drops_enabled and '✔' or '❌'} -> "
-                        f"{stream_after.drops_enabled and '✔' or '❌'})"
+                        f"{stream_after.drops_enabled and '✔' or '❌'})",
                     )
                 self.change_state(State.CHANNEL_SWITCH)
             # NOTE: In these cases, it wasn't the watching channel
@@ -1321,12 +1402,12 @@ class Twitch:
                 logger.info(
                     f"{channel.name} status has been updated "
                     f"(🎁: {stream_before.drops_enabled and '✔' or '❌'} -> "
-                    f"{stream_after.drops_enabled and '✔' or '❌'})"
+                    f"{stream_after.drops_enabled and '✔' or '❌'})",
                 )
         channel.display()
 
     @task_wrapper
-    async def process_drops(self, user_id: int, message: JsonType):
+    async def process_drops(self, user_id: int, message: JsonType) -> None:
         # Message examples:
         # {"type": "drop-progress", data: {"current_progress_min": 3, "required_progress_min": 10}}
         # {"type": "drop-claim", data: {"drop_instance_id": ...}}
@@ -1339,7 +1420,7 @@ class Twitch:
             if drop is None:
                 logger.error(
                     f"Received a drop claim ID for a non-existing drop: {drop_id}\n"
-                    f"Drop claim ID: {message['data']['drop_instance_id']}"
+                    f"Drop claim ID: {message['data']['drop_instance_id']}",
                 )
                 return
             drop.update_claim(message["data"]["drop_instance_id"])
@@ -1353,7 +1434,11 @@ class Twitch:
                 )
                 # two different claim texts, becase a new line after the game name
                 # looks ugly in the output window - replace it with a space
-                self.print(_("status", "claimed_drop").format(drop=claim_text.replace('\n', ' ')))
+                self.print(
+                    _("status", "claimed_drop").format(
+                        drop=claim_text.replace("\n", " "),
+                    ),
+                )
                 self.gui.tray.notify(claim_text, _("gui", "tray", "notification_title"))
             else:
                 logger.error(f"Drop claim failed! Drop ID: {drop_id}")
@@ -1361,11 +1446,11 @@ class Twitch:
             # by re-sending the watch payload. We can test for it by fetching the current drop
             # via GQL, and then comparing drop IDs.
             await asyncio.sleep(4)
-            for attempt in range(8):
+            for _attempt in range(8):
                 context = await self.gql_request(GQL_OPERATIONS["CurrentDrop"])
-                drop_data: JsonType | None = (
-                    context["data"]["currentUser"]["dropCurrentSession"]
-                )
+                drop_data: JsonType | None = context["data"]["currentUser"][
+                    "dropCurrentSession"
+                ]
                 if drop_data is None or drop_data["dropID"] != drop.id:
                     break
                 await asyncio.sleep(2)
@@ -1388,7 +1473,9 @@ class Twitch:
             # we aren't actually waiting for a progress update right now, so we can just
             # ignore the event this time
             return
-        elif drop is not None and drop.can_earn(self.watching_channel.get_with_default(None)):
+        elif drop is not None and drop.can_earn(
+            self.watching_channel.get_with_default(None),
+        ):
             # the received payload is for the drop we expected
             drop.update_minutes(message["data"]["current_progress_min"])
             drop.display()
@@ -1402,19 +1489,19 @@ class Twitch:
         self._drop_update = None
 
     @task_wrapper
-    async def process_notifications(self, user_id: int, message: JsonType):
+    async def process_notifications(self, user_id: int, message: JsonType) -> None:
         if message["type"] == "create-notification":
             data: JsonType = message["data"]["notification"]
             if data["type"] == "user_drop_reward_reminder_notification":
                 self.change_state(State.INVENTORY_FETCH)
                 await self.gql_request(
                     GQL_OPERATIONS["NotificationsDelete"].with_variables(
-                        {"input": {"id": data["id"]}}
-                    )
+                        {"input": {"id": data["id"]}},
+                    ),
                 )
 
     @task_wrapper
-    async def process_points(self, user_id: int, message: JsonType):
+    async def process_points(self, user_id: int, message: JsonType) -> None:
         # Example payloads:
         # {
         #     "type": "points-earned",
@@ -1465,7 +1552,12 @@ class Twitch:
             if channel is not None:
                 channel.points = balance
                 channel.display()
-            self.print(_("status", "earned_points").format(points=f"{points:3}", balance=balance))
+            self.print(
+                _("status", "earned_points").format(
+                    points=f"{points:3}",
+                    balance=balance,
+                ),
+            )
         elif msg_type == "claim-available":
             claim_data = message["data"]["claim"]
             points = claim_data["point_gain"]["total_points"]
@@ -1478,7 +1570,12 @@ class Twitch:
 
     @asynccontextmanager
     async def request(
-        self, method: str, url: URL | str, *, invalidate_after: datetime | None = None, **kwargs
+        self,
+        method: str,
+        url: URL | str,
+        *,
+        invalidate_after: datetime | None = None,
+        **kwargs,
     ) -> abc.AsyncIterator[aiohttp.ClientResponse]:
         session = await self.get_session()
         method = method.upper()
@@ -1486,20 +1583,20 @@ class Twitch:
             kwargs["proxy"] = self.settings.proxy
         logger.debug(f"Request: ({method=}, {url=}, {kwargs=})")
         session_timeout = timedelta(seconds=session.timeout.total or 0)
-        backoff = ExponentialBackoff(maximum=3*60)
+        backoff = ExponentialBackoff(maximum=3 * 60)
         for delay in backoff:
             if self.gui.close_requested:
-                raise ExitRequest()
+                raise ExitRequest
             elif (
                 invalidate_after is not None
                 # account for the expiration landing during the request
-                and datetime.now(timezone.utc) >= (invalidate_after - session_timeout)
+                and datetime.now(UTC) >= (invalidate_after - session_timeout)
             ):
-                raise RequestInvalid()
+                raise RequestInvalid
             try:
                 response: aiohttp.ClientResponse | None = None
                 response = await self.gui.coro_unless_closed(
-                    session.request(method, url, **kwargs)
+                    session.request(method, url, **kwargs),
                 )
                 assert response is not None
                 logger.debug(f"Response: {response.status}: {response}")
@@ -1512,7 +1609,7 @@ class Twitch:
             except aiohttp.ClientConnectorCertificateError:  # type: ignore[unused-ignore]
                 # for a case where SSL verification fails
                 raise
-            except (aiohttp.ClientConnectionError, asyncio.TimeoutError):
+            except (TimeoutError, aiohttp.ClientConnectionError):
                 # just so that quick retries that often happen, aren't shown
                 if backoff.steps > 1:
                     self.print(_("error", "no_connection").format(seconds=round(delay)))
@@ -1523,15 +1620,14 @@ class Twitch:
                 await asyncio.wait_for(self.gui.wait_until_closed(), timeout=delay)
 
     @overload
-    async def gql_request(self, ops: GQLOperation) -> JsonType:
-        ...
+    async def gql_request(self, ops: GQLOperation) -> JsonType: ...
 
     @overload
-    async def gql_request(self, ops: list[GQLOperation]) -> list[JsonType]:
-        ...
+    async def gql_request(self, ops: list[GQLOperation]) -> list[JsonType]: ...
 
     async def gql_request(
-        self, ops: GQLOperation | list[GQLOperation]
+        self,
+        ops: GQLOperation | list[GQLOperation],
     ) -> JsonType | list[JsonType]:
         gql_logger.debug(f"GQL Request: {ops}")
         backoff = ExponentialBackoff(maximum=60)
@@ -1542,7 +1638,10 @@ class Twitch:
                     "POST",
                     "https://gql.twitch.tv/gql",
                     json=ops,
-                    headers=auth_state.headers(user_agent=self._client_type.USER_AGENT, gql=True),
+                    headers=auth_state.headers(
+                        user_agent=self._client_type.USER_AGENT,
+                        gql=True,
+                    ),
                     invalidate_after=getattr(auth_state, "integrity_expires", None),
                 ) as response:
                     response_json: JsonType | list[JsonType] = await response.json()
@@ -1558,25 +1657,23 @@ class Twitch:
             for response_json in response_list:
                 if "errors" in response_json:
                     for error_dict in response_json["errors"]:
-                        if (
-                            "message" in error_dict
-                            and error_dict["message"] in (
-                                # "service error",
-                                "service unavailable",
-                                "service timeout",
-                                "context deadline exceeded",
-                            )
+                        if "message" in error_dict and error_dict["message"] in (
+                            # "service error",
+                            "service unavailable",
+                            "service timeout",
+                            "context deadline exceeded",
                         ):
                             force_retry = True
                             break
                     else:
-                        raise MinerException(f"GQL error: {response_json['errors']}")
+                        msg = f"GQL error: {response_json['errors']}"
+                        raise MinerException(msg)
                 if force_retry:
                     break
             else:
                 return orig_response
             await asyncio.sleep(delay)
-        raise MinerException()
+        raise MinerException
 
     def _merge_data(self, primary_data: JsonType, secondary_data: JsonType) -> JsonType:
         merged = {}
@@ -1586,7 +1683,8 @@ class Twitch:
                 vp = primary_data[key]
                 vs = secondary_data[key]
                 if not isinstance(vp, type(vs)) or not isinstance(vs, type(vp)):
-                    raise MinerException("Inconsistent merge data")
+                    msg = "Inconsistent merge data"
+                    raise MinerException(msg)
                 if isinstance(vp, dict):  # both are dicts
                     merged[key] = self._merge_data(vp, vs)
                 else:
@@ -1599,20 +1697,23 @@ class Twitch:
         return merged
 
     async def fetch_campaigns(
-        self, campaigns_chunk: list[tuple[str, JsonType]]
+        self,
+        campaigns_chunk: list[tuple[str, JsonType]],
     ) -> dict[str, JsonType]:
         campaign_ids: dict[str, JsonType] = dict(campaigns_chunk)
         auth_state = await self.get_auth()
         response_list: list[JsonType] = await self.gql_request(
             [
                 GQL_OPERATIONS["CampaignDetails"].with_variables(
-                    {"channelLogin": str(auth_state.user_id), "dropID": cid}
+                    {"channelLogin": str(auth_state.user_id), "dropID": cid},
                 )
                 for cid in campaign_ids
-            ]
+            ],
         )
         fetched_data: dict[str, JsonType] = {
-            (campaign_data := response_json["data"]["user"]["dropCampaign"])["id"]: campaign_data
+            (campaign_data := response_json["data"]["user"]["dropCampaign"])[
+                "id"
+            ]: campaign_data
             for response_json in response_list
         }
         return self._merge_data(campaign_ids, fetched_data)
@@ -1631,7 +1732,9 @@ class Twitch:
         inventory_data: dict[str, JsonType] = {c["id"]: c for c in ongoing_campaigns}
         # fetch general available campaigns data (campaigns)
         response = await self.gql_request(GQL_OPERATIONS["Campaigns"])
-        available_list: list[JsonType] = response["data"]["currentUser"]["dropCampaigns"] or []
+        available_list: list[JsonType] = (
+            response["data"]["currentUser"]["dropCampaigns"] or []
+        )
         applicable_statuses = ("ACTIVE", "UPCOMING")
         available_campaigns: dict[str, JsonType] = {
             c["id"]: c
@@ -1646,7 +1749,7 @@ class Twitch:
             [
                 self.fetch_campaigns(campaigns_chunk)
                 for campaigns_chunk in chunk(available_campaigns.items(), 20)
-            ]
+            ],
         ):
             chunk_campaigns_data = await chunk_coro
             # merge the inventory and campaigns datas together
@@ -1663,10 +1766,12 @@ class Twitch:
         self.gui.inv.clear()
         self.inventory.clear()
         switch_triggers: set[datetime] = set()
-        next_hour = datetime.now(timezone.utc) + timedelta(hours=1)
+        next_hour = datetime.now(UTC) + timedelta(hours=1)
         for i, campaign in enumerate(campaigns, start=1):
             status_update(
-                _("gui", "status", "adding_campaigns").format(counter=f"({i}/{len(campaigns)})")
+                _("gui", "status", "adding_campaigns").format(
+                    counter=f"({i}/{len(campaigns)})",
+                ),
             )
             self._drops.update({drop.id: drop for drop in campaign.drops})
             if campaign.can_earn_within(next_hour):
@@ -1675,12 +1780,12 @@ class Twitch:
             await self.gui.inv.add_campaign(campaign)
             # this is needed here explicitly, because images aren't always fetched
             if self.gui.close_requested:
-                raise ExitRequest()
+                raise ExitRequest
             self.inventory.append(campaign)
         self._mnt_triggers.clear()
         self._mnt_triggers.extend(sorted(switch_triggers))
         # trim out all triggers that we're already past
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         while self._mnt_triggers and self._mnt_triggers[0] <= now:
             self._mnt_triggers.popleft()
         # NOTE: maintenance task is restarted at the end of each inventory fetch
@@ -1706,7 +1811,9 @@ class Twitch:
                 and campaign.can_earn(watching_channel)  # can be earned on this channel
             ):
                 # add only the drops we can actually earn
-                drops.extend(drop for drop in campaign.drops if drop.can_earn(watching_channel))
+                drops.extend(
+                    drop for drop in campaign.drops if drop.can_earn(watching_channel)
+                )
         if drops:
             drops.sort(key=lambda d: d.remaining_minutes)
             return drops[0]
@@ -1715,20 +1822,27 @@ class Twitch:
     async def get_live_streams(self, game: Game, *, limit: int = 30) -> list[Channel]:
         try:
             response = await self.gql_request(
-                GQL_OPERATIONS["GameDirectory"].with_variables({
-                    "limit": limit,
-                    "slug": game.slug,
-                    "options": {
-                        "includeRestricted": ["SUB_ONLY_LIVE"],
-                        "systemFilters": ["DROPS_ENABLED"],
+                GQL_OPERATIONS["GameDirectory"].with_variables(
+                    {
+                        "limit": limit,
+                        "slug": game.slug,
+                        "options": {
+                            "includeRestricted": ["SUB_ONLY_LIVE"],
+                            "systemFilters": ["DROPS_ENABLED"],
+                        },
                     },
-                })
+                ),
             )
         except MinerException as exc:
-            raise MinerException(f"Game: {game.slug}") from exc
+            msg = f"Game: {game.slug}"
+            raise MinerException(msg) from exc
         if "game" in response["data"]:
             return [
-                Channel.from_directory(self, stream_channel_data["node"], drops_enabled=True)
+                Channel.from_directory(
+                    self,
+                    stream_channel_data["node"],
+                    drops_enabled=True,
+                )
                 for stream_channel_data in response["data"]["game"]["streams"]["edges"]
             ]
         return []
@@ -1736,6 +1850,6 @@ class Twitch:
     async def claim_points(self, channel_id: str | int, claim_id: str) -> None:
         await self.gql_request(
             GQL_OPERATIONS["ClaimCommunityPoints"].with_variables(
-                {"input": {"channelID": str(channel_id), "claimID": claim_id}}
-            )
+                {"input": {"channelID": str(channel_id), "claimID": claim_id}},
+            ),
         )

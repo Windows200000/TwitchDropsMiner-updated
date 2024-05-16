@@ -1,33 +1,32 @@
 from __future__ import annotations
 
-import json
 import asyncio
+import json
 import logging
-from time import time
 from contextlib import suppress
-from typing import Any, Literal, TYPE_CHECKING
+from time import time
+from typing import TYPE_CHECKING, Any, Literal
 
 import aiohttp
-
-from translate import _
+from constants import MAX_WEBSOCKETS, PING_INTERVAL, PING_TIMEOUT, WS_TOPICS_LIMIT
 from exceptions import MinerException, WebsocketClosed
-from constants import PING_INTERVAL, PING_TIMEOUT, MAX_WEBSOCKETS, WS_TOPICS_LIMIT
+from translate import _
 from utils import (
     CHARS_ASCII,
-    task_wrapper,
-    create_nonce,
-    json_minify,
-    format_traceback,
     AwaitableValue,
     ExponentialBackoff,
+    create_nonce,
+    format_traceback,
+    json_minify,
+    task_wrapper,
 )
 
 if TYPE_CHECKING:
     from collections import abc
 
-    from twitch import Twitch
-    from gui import WebsocketStatus
     from constants import JsonType, WebsocketTopic
+    from gui import WebsocketStatus
+    from twitch import Twitch
 
 
 WSMsgType = aiohttp.WSMsgType
@@ -36,7 +35,7 @@ ws_logger = logging.getLogger("TwitchDrops.websocket")
 
 
 class Websocket:
-    def __init__(self, pool: WebsocketPool, index: int):
+    def __init__(self, pool: WebsocketPool, index: int) -> None:
         self._pool: WebsocketPool = pool
         self._twitch: Twitch = pool._twitch
         self._ws_gui: WebsocketStatus = self._twitch.gui.websockets
@@ -68,26 +67,32 @@ class Websocket:
     def wait_until_connected(self):
         return self._ws.wait()
 
-    def set_status(self, status: str | None = None, refresh_topics: bool = False):
+    def set_status(
+        self,
+        status: str | None = None,
+        refresh_topics: bool = False,
+    ) -> None:
         self._twitch.gui.websockets.update(
-            self._idx, status=status, topics=(len(self.topics) if refresh_topics else None)
+            self._idx,
+            status=status,
+            topics=(len(self.topics) if refresh_topics else None),
         )
 
-    def request_reconnect(self):
+    def request_reconnect(self) -> None:
         # reset our ping interval, so we send a PING after reconnect right away
         self._next_ping = time()
         self._reconnect_requested.set()
 
-    async def start(self):
+    async def start(self) -> None:
         async with self._state_lock:
             self.start_nowait()
             await self.wait_until_connected()
 
-    def start_nowait(self):
+    def start_nowait(self) -> None:
         if self._handle_task is None or self._handle_task.done():
             self._handle_task = asyncio.create_task(self._handle())
 
-    async def stop(self, *, remove: bool = False):
+    async def stop(self, *, remove: bool = False) -> None:
         async with self._state_lock:
             if self._closed.is_set():
                 return
@@ -105,27 +110,30 @@ class Websocket:
                 self._topics_changed.set()
                 self._twitch.gui.websockets.remove(self._idx)
 
-    def stop_nowait(self, *, remove: bool = False):
+    def stop_nowait(self, *, remove: bool = False) -> None:
         # weird syntax but that's what we get for using a decorator for this
         # return type of 'task_wrapper' is a coro, so we need to instance it for the task
         asyncio.create_task(task_wrapper(self.stop)(remove=remove))
 
     async def _backoff_connect(
-        self, ws_url: str, **kwargs
+        self,
+        ws_url: str,
+        **kwargs,
     ) -> abc.AsyncGenerator[aiohttp.ClientWebSocketResponse, None]:
         session = await self._twitch.get_session()
         backoff = ExponentialBackoff(**kwargs)
-        if self._twitch.settings.proxy:
-            proxy = self._twitch.settings.proxy
-        else:
-            proxy = None
+        proxy = self._twitch.settings.proxy if self._twitch.settings.proxy else None
         for delay in backoff:
             try:
-                async with session.ws_connect(ws_url, ssl=True, proxy=proxy) as websocket:
+                async with session.ws_connect(
+                    ws_url,
+                    ssl=True,
+                    proxy=proxy,
+                ) as websocket:
                     yield websocket
                     backoff.reset()
             except (
-                asyncio.TimeoutError,
+                TimeoutError,
                 aiohttp.ClientResponseError,
                 aiohttp.ClientConnectionError,
             ):
@@ -137,12 +145,12 @@ class Websocket:
             except RuntimeError:
                 ws_logger.warning(
                     f"Websocket[{self._idx}] exiting backoff connect loop "
-                    "because session is closed (RuntimeError)"
+                    "because session is closed (RuntimeError)",
                 )
                 break
 
     @task_wrapper
-    async def _handle(self):
+    async def _handle(self) -> None:
         # ensure we're logged in before connecting
         self.set_status(_("gui", "websocket", "initializing"))
         await self._twitch.wait_until_login()
@@ -151,7 +159,8 @@ class Websocket:
         self._closed.clear()
         # Connect/Reconnect loop
         async for websocket in self._backoff_connect(
-            "wss://pubsub-edge.twitch.tv/v1", maximum=3*60  # 3 minutes maximum backoff time
+            "wss://pubsub-edge.twitch.tv/v1",
+            maximum=3 * 60,  # 3 minutes maximum backoff time
         ):
             self._ws.set(websocket)
             self._reconnect_requested.clear()
@@ -175,7 +184,7 @@ class Websocket:
                 if exc.received:
                     # server closed the connection, not us - reconnect
                     ws_logger.warning(
-                        f"Websocket[{self._idx}] closed unexpectedly: {websocket.close_code}"
+                        f"Websocket[{self._idx}] closed unexpectedly: {websocket.close_code}",
                     )
                 elif self._closed.is_set():
                     # we closed it - exit
@@ -187,18 +196,22 @@ class Websocket:
             self.set_status(_("gui", "websocket", "reconnecting"))
             ws_logger.warning(f"Websocket[{self._idx}] reconnecting...")
 
-    async def _handle_ping(self):
+    async def _handle_ping(self) -> None:
         now = time()
         if now >= self._next_ping:
             self._next_ping = now + PING_INTERVAL.total_seconds()
-            self._max_pong = now + PING_TIMEOUT.total_seconds()  # wait for a PONG for up to 10s
+            self._max_pong = (
+                now + PING_TIMEOUT.total_seconds()
+            )  # wait for a PONG for up to 10s
             await self.send({"type": "PING"})
         elif now >= self._max_pong:
             # it's been more than 10s and there was no PONG
-            ws_logger.warning(f"Websocket[{self._idx}] didn't receive a PONG, reconnecting...")
+            ws_logger.warning(
+                f"Websocket[{self._idx}] didn't receive a PONG, reconnecting...",
+            )
             self.request_reconnect()
 
-    async def _handle_topics(self):
+    async def _handle_topics(self) -> None:
         if not self._topics_changed.is_set():
             # nothing to do
             return
@@ -210,36 +223,43 @@ class Websocket:
         removed = self._submitted.difference(current)
         if removed:
             topics_list = list(map(str, removed))
-            ws_logger.debug(f"Websocket[{self._idx}]: Removing topics: {', '.join(topics_list)}")
+            ws_logger.debug(
+                f"Websocket[{self._idx}]: Removing topics: {', '.join(topics_list)}",
+            )
             await self.send(
                 {
                     "type": "UNLISTEN",
                     "data": {
                         "topics": topics_list,
                         "auth_token": auth_state.access_token,
-                    }
-                }
+                    },
+                },
             )
             self._submitted.difference_update(removed)
         # handle added topics
         added = current.difference(self._submitted)
         if added:
             topics_list = list(map(str, added))
-            ws_logger.debug(f"Websocket[{self._idx}]: Adding topics: {', '.join(topics_list)}")
+            ws_logger.debug(
+                f"Websocket[{self._idx}]: Adding topics: {', '.join(topics_list)}",
+            )
             await self.send(
                 {
                     "type": "LISTEN",
                     "data": {
                         "topics": topics_list,
                         "auth_token": auth_state.access_token,
-                    }
-                }
+                    },
+                },
             )
             self._submitted.update(added)
 
-    async def _gather_recv(self, messages: list[JsonType], timeout: float = 0.5):
-        """
-        Gather incoming messages over the timeout specified.
+    async def _gather_recv(
+        self,
+        messages: list[JsonType],
+        timeout: float = 0.5,
+    ) -> None:
+        """Gather incoming messages over the timeout specified.
         Note that there's no return value - this modifies `messages` in-place.
         """
         ws = self._ws.get_with_default(None)
@@ -258,23 +278,23 @@ class Websocket:
                 pass  # skip these
             elif raw_message.type is WSMsgType.ERROR:
                 ws_logger.error(
-                    f"Websocket[{self._idx}] error: {format_traceback(raw_message.data)}"
+                    f"Websocket[{self._idx}] error: {format_traceback(raw_message.data)}",
                 )
-                raise WebsocketClosed()
+                raise WebsocketClosed
             else:
-                ws_logger.error(f"Websocket[{self._idx}] error: Unknown message: {raw_message}")
+                ws_logger.error(
+                    f"Websocket[{self._idx}] error: Unknown message: {raw_message}",
+                )
 
-    def _handle_message(self, message):
+    def _handle_message(self, message) -> None:
         # request the assigned topic to process the response
         topic = self.topics.get(message["data"]["topic"])
         if topic is not None:
             # use a task to not block the websocket
             asyncio.create_task(topic(json.loads(message["data"]["message"])))
 
-    async def _handle_recv(self):
-        """
-        Handle receiving messages from the websocket.
-        """
+    async def _handle_recv(self) -> None:
+        """Handle receiving messages from the websocket."""
         # listen over 0.5s for incoming messages
         messages: list[JsonType] = []
         with suppress(asyncio.TimeoutError):
@@ -295,9 +315,11 @@ class Websocket:
                 ws_logger.warning(f"Websocket[{self._idx}] requested reconnect.")
                 self.request_reconnect()
             else:
-                ws_logger.warning(f"Websocket[{self._idx}] received unknown payload: {message}")
+                ws_logger.warning(
+                    f"Websocket[{self._idx}] received unknown payload: {message}",
+                )
 
-    def add_topics(self, topics_set: set[WebsocketTopic]):
+    def add_topics(self, topics_set: set[WebsocketTopic]) -> None:
         changed: bool = False
         while topics_set and len(self.topics) < WS_TOPICS_LIMIT:
             topic = topics_set.pop()
@@ -306,7 +328,7 @@ class Websocket:
         if changed:
             self._topics_changed.set()
 
-    def remove_topics(self, topics_set: set[str]):
+    def remove_topics(self, topics_set: set[str]) -> None:
         existing = topics_set.intersection(self.topics.keys())
         if not existing:
             # nothing to remove from here
@@ -316,7 +338,7 @@ class Websocket:
             del self.topics[topic]
         self._topics_changed.set()
 
-    async def send(self, message: JsonType):
+    async def send(self, message: JsonType) -> None:
         ws = self._ws.get_with_default(None)
         assert ws is not None
         if message["type"] != "PING":
@@ -326,7 +348,7 @@ class Websocket:
 
 
 class WebsocketPool:
-    def __init__(self, twitch: Twitch):
+    def __init__(self, twitch: Twitch) -> None:
         self._twitch: Twitch = twitch
         self._running = asyncio.Event()
         self.websockets: list[Websocket] = []
@@ -338,15 +360,15 @@ class WebsocketPool:
     def wait_until_connected(self) -> abc.Coroutine[Any, Any, Literal[True]]:
         return self._running.wait()
 
-    async def start(self):
+    async def start(self) -> None:
         self._running.set()
         await asyncio.gather(*(ws.start() for ws in self.websockets))
 
-    async def stop(self, *, clear_topics: bool = False):
+    async def stop(self, *, clear_topics: bool = False) -> None:
         self._running.clear()
         await asyncio.gather(*(ws.stop(remove=clear_topics) for ws in self.websockets))
 
-    def add_topics(self, topics: abc.Iterable[WebsocketTopic]):
+    def add_topics(self, topics: abc.Iterable[WebsocketTopic]) -> None:
         # ensure no topics end up duplicated
         topics_set = set(topics)
         if not topics_set:
@@ -372,9 +394,10 @@ class WebsocketPool:
             if not topics_set:
                 return
         # if we're here, there were leftover topics after filling up all websockets
-        raise MinerException("Maximum topics limit has been reached")
+        msg = "Maximum topics limit has been reached"
+        raise MinerException(msg)
 
-    def remove_topics(self, topics: abc.Iterable[str]):
+    def remove_topics(self, topics: abc.Iterable[str]) -> None:
         topics_set = set(topics)
         if not topics_set:
             # nothing to remove
