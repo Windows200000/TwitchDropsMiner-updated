@@ -1,12 +1,10 @@
-name: Build dev version
+name: Build release
 
 on:
-  push:
-    branches:
-      - 'in-dev'
   pull_request:
+    types: [closed]
     branches:
-      - 'in-dev'
+      - 'master'
   workflow_dispatch:
 
 env:
@@ -216,6 +214,12 @@ jobs:
         with:
           path: artifacts
 
+      - name: Read patch notes from file
+        id: read_patch_notes
+        run: |
+          PATCH_NOTES=$(cat patch_notes.txt)
+          echo "patch_notes=$PATCH_NOTES" >> $GITHUB_ENV
+
       - name: Upload builds to Releases
         uses: ncipollo/release-action@v1
         with:
@@ -226,13 +230,17 @@ jobs:
             # ⚠️ Please help with translation as tracked in #2 !
 
             ***
-            **This is an automatically generated in-development pre-release version of the application, that includes the latest in-dev branch changes.**
-            **⚠️ This build is not stable and may end up terminating with a fatal error. ⚠️**
-            **Use at your own risk.**
+            **This is an automatically generated updated version of the application, that includes the latest master branch changes.**
+            **This build should be stable, but if you encounter anything, please reoirt any issues you find.**
 
-            - Last build date: `${{steps.vars.outputs.date_now}}`
-            - Reference commit: ${{github.sha}}
-          name: Development build
-          prerelease: true
+            - Last build date: `${{ steps.vars.outputs.date_now }}`
+            - Reference commit: ${{ github.sha }}
+            
+            ***
+            ## Patch notes:
+            ${{ env.patch_notes }}
+
+          name: Updated build
+          prerelease: false
           removeArtifacts: true
-          tag: dev-build
+          tag: v15
