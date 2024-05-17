@@ -1,0 +1,3 @@
+### 17.5.2024
+- added Italian translation and credits
+- updated ci.yml to include these patch notes

@@ -214,6 +214,12 @@ jobs:
         with:
           path: artifacts
 
+      - name: Read patch notes from file
+        id: read_patch_notes
+        run: |
+          PATCH_NOTES=$(cat patch_notes.txt)
+          echo "patch_notes=$PATCH_NOTES" >> $GITHUB_ENV
+
       - name: Upload builds to Releases
         uses: ncipollo/release-action@v1
         with:
@@ -221,12 +227,20 @@ jobs:
           artifactErrorsFailBuild: true
           artifacts: artifacts/*/*
           body: |
-            **This is an automatically generated in-development pre-release version of the application, that includes the latest master branch changes.**
-            **⚠️ This build might not be stable and may end up terminating with a fatal error. ⚠️**
-            **Use at your own risk, but report issues.**
+            # ⚠️ Please help with translation as tracked in #2 !
 
-            - Last build date: `${{steps.vars.outputs.date_now}}`
-            - Reference commit: ${{github.sha}}
+            ***
+            **This is an automatically generated in-development pre-release version of the application, that includes the latest master branch changes.**
+            **⚠️ This build should, but might not be stable and may end up terminating with a fatal error. ⚠️**
+            **Use at your own risk and please report issues.**
+
+            - Last build date: `${{ steps.vars.outputs.date_now }}`
+            - Reference commit: ${{ github.sha }}
+            
+            ***
+            ## Patch notes:
+            ${{ env.patch_notes }}
+
           name: Development build
           prerelease: true
           removeArtifacts: true
