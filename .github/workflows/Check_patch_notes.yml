@@ -3,7 +3,7 @@ name: Check patch notes
 on:
   pull_request:
     branches:
-      - main
+      - in-dev
   workflow_dispatch:
 
 jobs:
