@@ -1,3 +1,6 @@
+### 25.5.2024
+- Updated Simplified Chinese and Traditional Chinese translation
+
 ## v15.4.0
 
 ### 23.5.2024
