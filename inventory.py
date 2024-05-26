@@ -100,7 +100,7 @@ class BaseDrop:
             self.preconditions_met  # preconditions are met
             and not self.is_claimed  # isn't already claimed
             # is within the timeframe
-            and self.starts_at <= datetime.now(timezone.utc) < self.ends_at
+            and self.starts_at <= datetime.now(timezone.utc) < self.ends_at - timedelta(minutes=self.remaining_minutes)
         )
 
     def can_earn(self, channel: Channel | None = None) -> bool:
@@ -110,7 +110,7 @@ class BaseDrop:
         return (
             self.preconditions_met  # preconditions are met
             and not self.is_claimed  # isn't already claimed
-            and self.ends_at > datetime.now(timezone.utc)
+            and self.ends_at - timedelta(minutes=self.remaining_minutes) > datetime.now(timezone.utc)
             and self.starts_at < stamp
         )
 
@@ -350,7 +350,7 @@ class DropsCampaign:
         # and uses a future timestamp to see if we can earn this campaign later
         return (
             self.linked
-            and self.ends_at > datetime.now(timezone.utc)
+            and self.ends_at - timedelta(minutes=self.remaining_minutes) > datetime.now(timezone.utc)
             and self.starts_at < stamp
             and any(drop.can_earn_within(stamp) for drop in self.drops)
         )
