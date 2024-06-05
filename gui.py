@@ -687,7 +687,9 @@ class CampaignProgress:
         self._timer_task = None
 
     def start_timer(self):
-        self._manager.print(f"Progress: {self._drop.current_minutes}/{self._drop.required_minutes} - {self._drop.campaign}")
+        self._manager.print(
+            f'{_("gui", "progress", "campaign_progress")} {self._drop.current_minutes}/{self._drop.required_minutes} - {self._drop.campaign.game.name}, {self._drop.campaign.name}'
+            )
         if self._timer_task is None:
             if self._drop is None or self._drop.remaining_minutes <= 0:
                 # if we're starting the timer at 0 drop minutes,
