@@ -1,7 +1,7 @@
 ## v15.6.0
 
 1.6.2024
-- Fixed bug where long cmapaign names caused a crash when trying to update tray description
+- Fixed bug where long campaign names caused a crash when trying to update tray description
 - Fixed `UnboundLocalError` crash due to wrong indentation
 
 30.5.2024
