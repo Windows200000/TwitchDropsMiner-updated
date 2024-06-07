@@ -1,3 +1,10 @@
+## v15.6.1
+
+7.6.2024
+- Hotfix for campaigns with subscription requirement having `requiredMinutesWatched` set to `0` causing `division by 0` crash. Tracked in #101.
+
+
+
 ## v15.6.0
 
 1.6.2024
