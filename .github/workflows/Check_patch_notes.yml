@@ -1,0 +1,24 @@
+name: Check patch notes
+
+on:
+  pull_request:
+    branches:
+      - in-dev
+  workflow_dispatch:
+
+jobs:
+  check_patch_notes:
+    runs-on: ubuntu-latest  # windows-latest | macos-latest
+    name: Test changed-files
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 2  # "0" OR "2" -> To retrieve the preceding commit.
+      
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v9.2
+      
+      - name: Run when patch noted don't change
+        if: ${{ !contains(steps.changed-files.outputs.modified_files, 'patch_notes.txt') }} 
+        run: exit 1

@@ -216,7 +216,12 @@ class TimedDrop(BaseDrop):
 
     @cached_property
     def progress(self) -> float:
-        return self.current_minutes / self.required_minutes
+        if self.required_minutes:   # Quick fix to prevent division by zero crash
+            return self.current_minutes / self.required_minutes
+        else:
+            self._manager.print(f'!!!required_minutes for "{self.name}" is 0 This could be due to a subscription requirement, tracked in Issue #101!!!')
+            self.preconditions_met = False
+            return 0
 
     def _on_claim(self) -> None:
         result = super()._on_claim()

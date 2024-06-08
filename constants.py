@@ -116,7 +116,7 @@ DEFAULT_LANG = "English"
 PING_INTERVAL = timedelta(minutes=3)
 PING_TIMEOUT = timedelta(seconds=10)
 ONLINE_DELAY = timedelta(seconds=120)
-WATCH_INTERVAL = timedelta(seconds=59)
+WATCH_INTERVAL = timedelta(seconds=20)
 # Strings
 WINDOW_TITLE = f"Twitch Drops Miner v{__version__} (by DevilXD)"
 # Logging
@@ -238,6 +238,18 @@ class GQLOperation(JsonType):
 
 
 GQL_OPERATIONS: dict[str, GQLOperation] = {
+    # retuns PlaybackAccessToken_Template, for fix 2024/5
+    "PlaybackAccessToken": GQLOperation(
+        "PlaybackAccessToken",
+        "3093517e37e4f4cb48906155bcd894150aef92617939236d2508f3375ab732ce",
+        variables={
+            "isLive": True,
+            "login": "...",
+            "isVod": False,
+            "vodID": "",
+            "playerType": "site"
+        },
+    ),
     # returns stream information for a particular channel
     "GetStreamInfo": GQLOperation(
         "VideoPlayerStreamInfoOverlayChannel",

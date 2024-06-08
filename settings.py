@@ -14,10 +14,12 @@ if TYPE_CHECKING:
 class SettingsFile(TypedDict):
     proxy: URL
     language: str
+    dark_theme: bool
     autostart: bool
     exclude: set[str]
     priority: list[str]
     priority_only: bool
+    prioritize_by_ending_soonest: bool
     autostart_tray: bool
     connection_quality: int
     tray_notifications: bool
@@ -27,8 +29,10 @@ default_settings: SettingsFile = {
     "proxy": URL(),
     "priority": [],
     "exclude": set(),
+    "dark_theme": False,
     "autostart": False,
     "priority_only": True,
+    "prioritize_by_ending_soonest": False,
     "autostart_tray": False,
     "connection_quality": 1,
     "language": DEFAULT_LANG,
@@ -48,10 +52,12 @@ class Settings:
     # from settings file
     proxy: URL
     language: str
+    dark_theme: bool
     autostart: bool
     exclude: set[str]
     priority: list[str]
     priority_only: bool
+    prioritize_by_ending_soonest: bool
     autostart_tray: bool
     connection_quality: int
     tray_notifications: bool

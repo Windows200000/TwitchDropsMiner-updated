@@ -34,6 +34,7 @@ except ImportError as exc:
         ) from exc
     raise
 
+from cache import CurrentSeconds
 from translate import _
 from gui import GUIManager
 from channel import Channel
@@ -746,14 +747,17 @@ class Twitch:
         Return a priority number for a given channel.
 
         Higher number, higher priority.
-        Priority 0 is given to channels streaming a game not on the priority list.
-        Priority -1 is given to OFFLINE channels, or channels streaming no particular games.
+        Priority requested games are > 0
+        Non-priority games are < 0
+        (maxsize - 1) Priority is given to OFFLINE channels, or channels streaming no particular games.
+        (maxsize - 2) Priority is given to channels streaming games without campaigns.
         """
         if (game := channel.game) is None:
             # None when OFFLINE or no game set
-            return -1
+            return -(sys.maxsize - 1)
         elif game not in self.wanted_games:
-            return 0
+            # Any channel thats is filtered out by filter_campaigns()
+            return -(sys.maxsize - 2)
         return self.wanted_games[game]
 
     @staticmethod
@@ -825,22 +829,21 @@ class Twitch:
                 # figure out which games we want
                 self.wanted_games.clear()
                 priorities = self.gui.settings.priorities()
-                exclude = self.settings.exclude
-                priority = self.settings.priority
-                priority_only = self.settings.priority_only
-                next_hour = datetime.now(timezone.utc) + timedelta(hours=1)
-                for campaign in self.inventory:
+                prioritize_by_ending_soonest = self.settings.prioritize_by_ending_soonest
+                campaigns = self.inventory
+                filtered_campaigns = list(filter(self.filter_campaigns, campaigns))
+                for i, campaign in enumerate(filtered_campaigns):
                     game = campaign.game
-                    if (
-                        game not in self.wanted_games  # isn't already there
-                        and game.name not in exclude  # and isn't excluded
-                        # and isn't excluded by priority_only
-                        and (not priority_only or game.name in priority)
-                        # and can be progressed within the next hour
-                        and campaign.can_earn_within(next_hour)
-                    ):
-                        # non-excluded games with no priority are placed last, below priority ones
-                        self.wanted_games[game] = priorities.get(game.name, 0)
+                    # get users priority preference
+                    game_priority = priorities.get(game.name, 0)
+                    if (game_priority):
+                        if (prioritize_by_ending_soonest):
+                           # list is sorted by end_at so this keeps them in order
+                           self.wanted_games[game] = len(filtered_campaigns) - i
+                        else:
+                            self.wanted_games[game] = game_priority
+                    else:
+                        self.wanted_games[game] = -i
                 full_cleanup = True
                 self.restart_watching()
                 self.change_state(State.CHANNELS_CLEANUP)
@@ -1047,7 +1050,7 @@ class Twitch:
             if not succeeded:
                 # this usually means the campaign expired in the middle of mining
                 # NOTE: the maintenance task should switch the channel right after this happens
-                await self._watch_sleep(60)
+                await self._watch_sleep(interval)
                 continue
             last_watch = time()
             self._drop_update = asyncio.Future()
@@ -1101,13 +1104,15 @@ class Twitch:
                     # NOTE: get_active_drop uses the watching channel by default,
                     # so there's no point to pass it here
                     if (drop := self.get_active_drop()) is not None:
-                        drop.bump_minutes()
-                        drop.display()
-                        drop_text = (
-                            f"{drop.name} ({drop.campaign.game}, "
-                            f"{drop.current_minutes}/{drop.required_minutes})"
-                        )
-                        logger.log(CALL, f"Drop progress from active search: {drop_text}")
+                        current_seconds = CurrentSeconds.get_current_seconds()
+                        if current_seconds < 1:
+                            drop.bump_minutes()
+                            drop.display()
+                            drop_text = (
+                                f"{drop.name} ({drop.campaign.game}, "
+                                f"{drop.current_minutes}/{drop.required_minutes})"
+                            )
+                            logger.log(CALL, f"Drop progress from active search: {drop_text}")
                     else:
                         logger.log(CALL, "No active drop could be determined")
             await self._watch_sleep(last_watch + interval - time())
@@ -1613,6 +1618,23 @@ class Twitch:
             for response_json in response_list
         }
         return self._merge_data(campaign_ids, fetched_data)
+
+    def filter_campaigns(self, campaign: list[DropsCampaign]):
+        exclude = self.settings.exclude
+        priority = self.settings.priority
+        priority_only = self.settings.priority_only
+        game = campaign.game
+        next_hour = datetime.now(timezone.utc) + timedelta(hours=1)
+        if (
+            game not in self.wanted_games # isn't already there
+            and game.name not in exclude # and isn't excluded
+            # and isn't excluded by priority_only
+            and (not priority_only or game.name in priority)
+            # and can be progressed within the next hour
+            and campaign.can_earn_within(next_hour)
+        ):
+            return True
+        return False
 
     async def fetch_inventory(self) -> None:
         status_update = self.gui.status.update

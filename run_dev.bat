@@ -6,6 +6,10 @@ set /p "choice=Start with a console? (y/n) "
 if "%choice%"=="y" (
     set "exepath=%dirpath%\env\scripts\python"
 ) else (
-    set "exepath=%dirpath%\env\scripts\pythonw"
+    if "%choice%"=="" (
+        set "exepath=%dirpath%\env\scripts\python"
+    ) else (
+        set "exepath=%dirpath%\env\scripts\pythonw"
+    )
 )
 start "TwitchDropsMiner" "%exepath%" "%dirpath%\main.py"

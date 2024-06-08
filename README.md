@@ -1,10 +1,12 @@
 # Twitch Drops Miner
 
+Thanks to @DevilXD and other contributors from the [original repo](https://github.com/DevilXD/TwitchDropsMiner) for the vast majority of the code.
+
 This application allows you to AFK mine timed Twitch drops, without having to worry about switching channels when the one you were watching goes offline, claiming the drops, or even receiving the stream data itself. This helps both you and Twitch save on bandwidth and hassle. Everyone wins!
 
 ### How It Works:
 
-Every ~60 seconds, the application sends a "minute watched" event to the channel that's currently being watched - this is enough to advance the drops. Note that this completely bypasses the need to download any actual stream video and sound. To keep the status (ONLINE or OFFLINE) of the channels up-to-date, there's a websocket connection established that receives events about streams going up or down, or updates regarding the current amount of viewers.
+Every ~20 seconds, the application asks Twitch for a URL to the raw stream data of the channel currently being watched. It then fetches the metadata of this data stream - this is enough to advance the drops. Note that this completely bypasses the need to download any actual stream video and sound. To keep the status (ONLINE or OFFLINE) of the channels up-to-date, there's a websocket connection established that receives events about streams going up or down, or updates regarding the current amount of viewers.
 
 ### Features:
 
@@ -30,6 +32,8 @@ Every ~60 seconds, the application sends a "minute watched" event to the channel
 ![Main](https://user-images.githubusercontent.com/4180725/164298155-c0880ad7-6423-4419-8d73-f3c053730a1b.png)
 ![Inventory](https://user-images.githubusercontent.com/4180725/164298315-81cae0d2-24a4-4822-a056-154fd763c284.png)
 ![Settings](https://user-images.githubusercontent.com/4180725/164298391-b13ad40d-3881-436c-8d4c-34e2bbe33a78.png)
+![Help](https://github.com/Windows200000/TwitchDropsMiner-updated/assets/72623832/ca1c25e1-650f-415b-ab9d-8cfc001fc7e6)
+
 
 ### Notes:
 
@@ -129,3 +133,5 @@ if they aren't already there. Doing so ensures proper markdown rendering on Gith
 @casungo - For the entirety of the Italian (Italiano) translation.  
 @Bamboozul - For the entirety of the Arabic (العربية) translation.  
 @Kjerne - For the entirety of the Danish (Dansk) translation.
+
+For updating Translations: @Kuddus73, @VSeryi, @Windows200000, @BreakshadowCN, @kilroy98, @zelda0079, @Calvineries, @notNSANE, @ElvisDesigns, @DogancanYr, @Nollasko, @rvpv, @flxderdev, @5wi5wi, @fgr1178707QQ, @Suz1e, @Patriot99
