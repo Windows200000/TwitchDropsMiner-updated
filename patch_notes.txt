@@ -1,3 +1,10 @@
+## v15.7.0
+
+10.6.2024
+- updated **Danish**, **Indonesian** and **Portuguese** translation as well as corresponding credits
+
+
+
 ## v15.6.1
 
 7.6.2024
@@ -5,6 +12,7 @@
 
 5.6.2024
 - Fixed progress reporting not being translated to other languages
+
 
 
 ## v15.6.0
