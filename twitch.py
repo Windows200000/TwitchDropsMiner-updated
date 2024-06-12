@@ -1746,10 +1746,13 @@ class Twitch:
         except MinerException as exc:
             raise MinerException(f"Game: {game.slug}") from exc
         if "game" in response["data"]:
-            return [
-                Channel.from_directory(self, stream_channel_data["node"], drops_enabled=True)
-                for stream_channel_data in response["data"]["game"]["streams"]["edges"]
-            ]
+            streams = []
+            for stream_channel_data in response["data"]["game"]["streams"]["edges"]:
+                if stream_channel_data["node"]["broadcaster"]:
+                    streams.append(Channel.from_directory(self, stream_channel_data["node"], drops_enabled=True))
+                else:
+                    self.gui.print(f'Could not load Channel for {stream_channel_data["node"]["game"]["name"]}.\n↳ Stream Title: "{stream_channel_data["node"]["title"]}"')
+            return streams
         return []
 
     async def claim_points(self, channel_id: str | int, claim_id: str) -> None:
