@@ -1,6 +1,9 @@
 ## v15.7.0
 
 10.6.2024
+- Fixed crash upon Twitch returning `"broadcaster": null`
+
+10.6.2024
 - updated **Danish**, **Indonesian** and **Portuguese** translation as well as corresponding credits
 
 
