@@ -1,5 +1,10 @@
 ## v15.7.0
 
+13.6.2024
+- The miner saves and restores the window position
+    - You can reset the position with a new tray icon option: `Show (Refresh)`
+- Tray icon is now always visible
+
 10.6.2024
 - Fixed crash upon Twitch returning `"broadcaster": null`
 
