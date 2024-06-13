@@ -6,7 +6,6 @@
 - Tray icon is now always visible
 - Updated **French** and **Dutch** translation as well as corresponding credits
 
-
 10.6.2024
 - Fixed crash upon Twitch returning `"broadcaster": null`
 
