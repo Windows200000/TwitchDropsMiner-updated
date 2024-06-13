@@ -23,6 +23,7 @@ class SettingsFile(TypedDict):
     autostart_tray: bool
     connection_quality: int
     tray_notifications: bool
+    window_position: str
 
 
 default_settings: SettingsFile = {
@@ -37,6 +38,7 @@ default_settings: SettingsFile = {
     "connection_quality": 1,
     "language": DEFAULT_LANG,
     "tray_notifications": True,
+    "window_position": "",
 }
 
 
@@ -61,6 +63,7 @@ class Settings:
     autostart_tray: bool
     connection_quality: int
     tray_notifications: bool
+    window_position: str
 
     PASSTHROUGH = ("_settings", "_args", "_altered")
 

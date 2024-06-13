@@ -1042,6 +1042,9 @@ class TrayIcon:
         self.icon_image = Image_module.open(resource_path("pickaxe.ico"))
         self._button = ttk.Button(master, command=self.minimize, text=_("gui", "tray", "minimize"))
         self._button.grid(column=0, row=0, sticky="ne")
+        self.always_show_icon = True        # Ensure there is a way to restore the window position, in case it's shown off-screen (e.g. Second monitor)
+        if self.always_show_icon:
+            self._start()
 
     def __del__(self) -> None:
         self.stop()
@@ -1080,7 +1083,8 @@ class TrayIcon:
 
     def _start(self):
         loop = asyncio.get_running_loop()
-        drop = self._manager.progress._drop
+        if not self.always_show_icon:
+            drop = self._manager.progress._drop
 
         # we need this because tray icon lives in a separate thread
         def bridge(func):
@@ -1090,10 +1094,22 @@ class TrayIcon:
             pystray.MenuItem(_("gui", "tray", "show"), bridge(self.restore), default=True),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem(_("gui", "tray", "quit"), bridge(self.quit)),
+            pystray.MenuItem(f'{_("gui", "tray", "show")} ({_("gui", "inventory", "filter", "refresh")})', bridge(self.restore_position)),
         )
-        self.icon = pystray.Icon("twitch_miner", self.icon_image, self.get_title(drop), menu)
+        if self.always_show_icon:
+            self.icon = pystray.Icon("twitch_miner", self.icon_image, self.get_title(None), menu)
+        else:
+            self.icon = pystray.Icon("twitch_miner", self.icon_image, self.get_title(drop), menu)
         # self.icon.run_detached()
         loop.run_in_executor(None, self.icon.run)
+
+    def restore_position(self):
+        if not self.always_show_icon:
+            if self.icon is not None:
+                # self.stop()
+                self.icon.visible = False
+        self._manager._root.geometry("0x0+0+0")
+        self._manager._root.deiconify()
 
     def stop(self):
         if self.icon is not None:
@@ -1104,16 +1120,18 @@ class TrayIcon:
         self._manager.close()
 
     def minimize(self):
-        if self.icon is None:
-            self._start()
-        else:
-            self.icon.visible = True
+        if not self.always_show_icon:
+            if self.icon is None:
+                self._start()
+            else:
+                self.icon.visible = True
         self._manager._root.withdraw()
 
     def restore(self):
-        if self.icon is not None:
-            # self.stop()
-            self.icon.visible = False
+        if not self.always_show_icon:
+            if self.icon is not None:
+                # self.stop()
+                self.icon.visible = False
         self._manager._root.deiconify()
 
     def notify(
@@ -1483,6 +1501,7 @@ class _SettingsVars(TypedDict):
     priority_only: IntVar
     prioritize_by_ending_soonest: IntVar
     tray_notifications: IntVar
+    window_position: StringVar
 
 
 class SettingsPanel:
@@ -1502,6 +1521,7 @@ class SettingsPanel:
             "priority_only": IntVar(master, self._settings.priority_only),
             "prioritize_by_ending_soonest": IntVar(master, self._settings.prioritize_by_ending_soonest),
             "tray_notifications": IntVar(master, self._settings.tray_notifications),
+            "window_position": IntVar(master, self._settings.window_position),
         }
         master.rowconfigure(0, weight=1)
         master.columnconfigure(0, weight=1)
@@ -1928,6 +1948,11 @@ class GUIManager:
         set_root_icon(root, resource_path("pickaxe.ico"))
         root.title(WINDOW_TITLE)  # window title
         root.bind_all("<KeyPress-Escape>", self.unfocus)  # pressing ESC unfocuses selection
+        # restore last window position
+        if self._twitch.settings.window_position:
+            root.geometry(self._twitch.settings.window_position)
+        else:
+            self._twitch.settings.window_position = self._root.geometry()
         # Image cache for displaying images
         self._cache = ImageCache(self)
 
@@ -2051,7 +2076,7 @@ class GUIManager:
         if self._twitch.settings.dark_theme:
             set_theme(root, self, "dark")
         else:
-            set_theme(root, self, "default")    #
+            set_theme(root, self, "default")
 
     # https://stackoverflow.com/questions/56329342/tkinter-treeview-background-tag-not-working
     def _fixed_map(self, option):
@@ -2164,6 +2189,7 @@ class GUIManager:
 
     # these are here to interface with underlaying GUI components
     def save(self, *, force: bool = False) -> None:
+        self._twitch.settings.window_position = self._root.geometry()
         self._cache.save(force=force)
 
     def grab_attention(self, *, sound: bool = True):
@@ -2425,7 +2451,8 @@ if __name__ == "__main__":
                 prioritize_by_ending_soonest=False,
                 autostart_tray=False,
                 exclude={"Lit Game"},
-                tray_notifications=True
+                tray_notifications=True,
+                window_position= "940x690+3203+345",
             )
         )
         mock.change_state = lambda state: mock.gui.print(f"State change: {state.value}")
