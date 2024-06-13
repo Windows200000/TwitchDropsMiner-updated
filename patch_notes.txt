@@ -4,12 +4,14 @@
 - The miner saves and restores the window position
     - You can reset the position with a new tray icon option: `Show (Refresh)`
 - Tray icon is now always visible
+- Updated **French** and **Dutch** translation as well as corresponding credits
+
 
 10.6.2024
 - Fixed crash upon Twitch returning `"broadcaster": null`
 
 10.6.2024
-- updated **Danish**, **Indonesian** and **Portuguese** translation as well as corresponding credits
+- Updated **Danish**, **Indonesian** and **Portuguese** translation as well as corresponding credits
 
 
 
@@ -30,10 +32,10 @@
 - Fixed `UnboundLocalError` crash due to wrong indentation
 
 30.5.2024
-- updated **Arabic**, **Turkish**, **Simplified Chinese** and **English** translation as well as corresponding credits
+- Updated **Arabic**, **Turkish**, **Simplified Chinese** and **English** translation as well as corresponding credits
 
 28.5.2024
-- updated **Italian**, **Polish**, **Turkish** and **Ukrainian** translation as well as corresponding credits
+- Updated **Italian**, **Polish**, **Turkish** and **Ukrainian** translation as well as corresponding credits
 
 
 
