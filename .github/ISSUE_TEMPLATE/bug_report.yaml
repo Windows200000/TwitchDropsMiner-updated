@@ -1,0 +1,114 @@
+name: Bug report
+description: Create a bug report.
+labels: ["Bug"]
+body:
+
+
+  - type: markdown
+    attributes:
+      value: |
+        ## Before submitting an issue, look at the [project goals](https://github.com/Windows200000/TwitchDropsMiner-updated#project-goals)!
+
+        ### Bad Title:
+        - Need help
+        - Cookie Jar
+        - Received error (working fine prior to reboot)
+        - I am getting an error when trying to run
+
+        ### Good Title:
+        - Not finding any Campaigns
+        - Random crash with GQL error "PersistedQueryNotFound"
+        - TypeError: 'NoneType' object is not subscriptable
+        - Drops not being claimed in the intended way, causing some to be missed and no notifications
+
+  - type: textarea
+    attributes:
+      label: Description
+      description: A clear and concise description of what the bug is.
+      placeholder: TDM crashes when I open the `Inventory` tab.
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: To Reproduce
+      description: Steps to reproduce the behavior. Being able to reliably cause a bug can often result in a quick fix.
+      placeholder: |
+        1. Add Rust Twitch Drops
+        2. Reload
+        3. Go to Inventory tab
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Expected behavior
+      description: What should have happened?
+      placeholder: The `Inventory` tab shows.
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Observed behavior
+      description: What actually happened?
+      placeholder: TDM stopped responding.
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Screenshots
+      description: Add any relevant screenshots.
+    validations:
+      required: false
+
+  - type: textarea
+    attributes:
+      label: Logs
+      description: |
+        If you have them, provide any logs. They can help, even if no error is shown.
+        Ideally run with `-vvv --debug-gql --debug-ws --log`.
+      placeholder: |
+        ```
+        11:35:35: No available channels to watch. Waiting for an ONLINE channel...
+        12:35:39: No available channels to watch. Waiting for an ONLINE channel...
+        13:35:44: No available channels to watch. Waiting for an ONLINE channel...
+        14:35:48: No available channels to watch. Waiting for an ONLINE channel...
+        15:33:21: ibai goes ONLINE, switching...
+        15:33:21: Watching: ibai
+        ```
+    validations:
+      required: false
+
+  - type: input
+    attributes:
+      label: OS
+      description: What Operating System are you using?
+      placeholder: Windows 11 | Linux Mint
+    validations:
+      required: true
+
+  - type: input
+    attributes:
+      label: Build
+      description: How are you running TDM?
+      placeholder: from source | .exe | AppImage
+    validations:
+      required: true
+
+  - type: input
+    attributes:
+      label: Version/Commit
+      description: What version are you using? If you are NOT using an official release, enter the commit.
+      placeholder: v1.5.0 | 54ef767
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Additional context
+      description: Add any other context about the problem.
+      placeholder: You got to the end, thanks for reporting! ;)
+    validations:
+      required: false
