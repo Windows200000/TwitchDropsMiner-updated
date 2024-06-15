@@ -40,7 +40,6 @@
       "terminated": "Terminé",
       "cleanup": "Nettoyage des canaux...",
       "gathering": "Recherche de chaînes en direct...",
-      "switching": "Collecte des chaînes en cours...",
       "fetching_inventory": "Récupération de l'inventaire...",
       "fetching_campaigns": "Récupération des campagnes...",
       "adding_campaigns": "Ajout de la liste des campagnes à l'inventaire... {counter}"
@@ -71,7 +70,7 @@
       "button": "Se connecter"
     },
     "websocket": {
-      "name": "État du  Websocket",
+      "name": "État du Websocket",
       "websocket": "Websocket #{id}:",
       "initializing": "Initialisation...",
       "connected": "Connecté",
@@ -83,7 +82,7 @@
     "progress": {
       "name": "Progression de la campagne",
       "drop": "Drop :",
-      "game": "Jeux :",
+      "game": "Jeu :",
       "campaign": "Campagne :",
       "remaining": "{time} restant",
       "drop_progress": "Avancement :",
@@ -92,7 +91,7 @@
     "channels": {
       "name": "Chaînes",
       "switch": "Basculer",
-      "load_points": "Charger des Points",
+      "load_points": "Charger les points",
       "online": "EN LIGNE  ✔",
       "pending": "HORS LIGNE ⏳",
       "offline": "HORS LIGNE ❌",
