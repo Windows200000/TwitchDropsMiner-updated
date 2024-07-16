@@ -3,8 +3,8 @@
   "status": {
     "terminated": "\nAplikasi telah dihentikan. \nSilakan tutup aplikasi.",
     "watching": "Menonton : {channel}",
-    "goes_online": "{channel} Tiket masuk ONLINE, ganti...",
-    "goes_offline": "{channel} menjadi OFF-LINE, ubah...",
+    "goes_online": "{channel} ONLINE, berganti...",
+    "goes_offline": "{channel} menjadi OFFLINE, berganti...",
     "claimed_drop": "Drop dipulihkan : {drop}",
     "claimed_points": "Poin bonus yang dipulihkan: {points}",
     "earned_points": "Poin yang diperoleh dari menonton : {points}, jumlah : {balance}",
@@ -41,7 +41,7 @@
       "cleanup": "Membersihkan saluran...",
       "gathering": "Pencarian saluran langsung...",
       "switching": "Koleksi saluran yang sedang berlangsung...",
-      "fetching_inventory": "Mmengambil inventaris...",
+      "fetching_inventory": "Mengambil inventaris...",
       "fetching_campaigns": "Mengambil kampanye...",
       "adding_campaigns": "Menambahkan daftar kampanye ke inventaris... {counter}"
     },
@@ -108,16 +108,16 @@
       "filter": {
         "name": "Saring",
         "show": "Tampilkan :",
-        "not_linked": "Non lié",
-        "upcoming": "Segera haidr",
-        "expired": "Kadaluarsa",
+        "not_linked": "Tidak tertautkan",
+        "upcoming": "Segera hadir",
+        "expired": "Kedaluarsa",
         "excluded": "Dikecualikan",
         "finished": "Selesai",
         "refresh": "Muat ulang"
       },
       "status": {
         "linked": "Ditautkan ✔",
-        "not_linked": "Tidak Ditautkan ❌",
+        "not_linked": "Tidak tertautkan ❌",
         "active": "Aktif ✔",
         "upcoming": "Segera hadir ⏳",
         "expired": "Kedaluarsa ❌",
@@ -139,7 +139,7 @@
         "autostart": "Mulai secara otomatis :",
         "tray": "Mulai otomatis di bilah tugas :",
         "tray_notifications": "Pemberitahuan bilah tugas :",
-        "priority_only": "Prioritas saja :",
+        "priority_only": "Yang diprioritaskan saja :",
         "prioritize_by_ending_soonest": "Dahulukan yang segera berakhir: ",
         "proxy": "Proksi (harus dimulai ulang) :"
       },
@@ -156,7 +156,6 @@
         "campaigns": "Lihat semua kampanye dan kelola akun terkait"
       },
       "how_it_works": "Cara kerja",
-      "how_it_works_text": "Kira-kira setiap ~60 detik, aplikasi ini mengirimkan \"menit ditonton\" ke saluran yang sedang ditonton - yang cukup untuk membuat drop terus bergerak. Perhatikan bahwa hal ini sepenuhnya mengabaikan kebutuhan untuk mengunduh video dan audio dari streaming yang sebenarnya. Untuk menjaga agar status (ONLINE atau OFFLINE) saluran tetap terbaru, koneksi websocket dibuat untuk menerima peristiwa tentang streaming yang naik atau turun, atau pembaruan tentang jumlah penonton saat ini",
       "getting_started": "Mulai",
       "getting_started_text": "1. Masuk ke aplikasi.\n2. Pastikan akun Twitch Anda ditautkan ke semua kampanye yang Anda minati.\n3. Jika Anda hanya ingin menambang semuanya, hapus centang pada \"Hanya Prioritas\" dan tekan \"Muat Ulang\".\n4. Jika Anda ingin menambang game tertentu terlebih dahulu, gunakan daftar \"Prioritas\" untuk menentukan daftar game pilihan Anda. Game yang berada di bagian atas daftar akan tergoda untuk ditambang terlebih dahulu, sebelum game yang berada di bagian bawah daftar.\n5. Biarkan opsi \"Prioritas saja\" dicentang untuk menghindari menambang game yang tidak ada dalam daftar prioritas. Atau tidak - terserah Anda.\n6. Gunakan daftar \"Kecualikan\" untuk memberi tahu aplikasi game mana yang tidak boleh ditambang.\n7. Untuk memodifikasi konten dari salah satu daftar atau mengubah status opsi \"Hanya Prioritas\", Anda perlu menekan \"Muat Ulang\" agar perubahan dapat diterapkan."
     }
