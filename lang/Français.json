@@ -40,6 +40,7 @@
       "terminated": "Terminé",
       "cleanup": "Nettoyage des canaux...",
       "gathering": "Recherche de chaînes en direct...",
+      "switching": "Changement de chaîne...",
       "fetching_inventory": "Récupération de l'inventaire...",
       "fetching_campaigns": "Récupération des campagnes...",
       "adding_campaigns": "Ajout de la liste des campagnes à l'inventaire... {counter}"
