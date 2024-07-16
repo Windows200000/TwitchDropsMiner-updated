@@ -1,7 +1,10 @@
 ## v15.7.1
 
+16.7.2024
+- Updated **French** and **Indonesian** translation
+
 1.7.2024
-- Patched bug due to Twitch falsely reporting time claimed.
+- Patched bug due to Twitch falsely reporting time claimed
     - Campaigns, that are both repeating **AND** are falsely reported, could still cause issues. Tracked in #139.
 
 
