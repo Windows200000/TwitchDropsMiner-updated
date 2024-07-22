@@ -1,7 +1,12 @@
-## v15.7.1
+## v15.8.0
+
+22.7.2024
+- Changed GQL persistant query `DropCampaignDetails` hash to match a change on Twitch's side and prevent `PersistedQueryNotFound` crash on startup.
 
 16.7.2024
 - Updated **French** and **Indonesian** translation
+
+## v15.7.1
 
 1.7.2024
 - Patched bug due to Twitch falsely reporting time claimed
