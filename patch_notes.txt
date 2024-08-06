@@ -1,4 +1,8 @@
-## v15.?.?
+## v15.8.1
+
+5.8.2024
+- Changed ClientType to android app to fix `KeyError: 'data'` as reported in #161
+    - Thanks to @Nazar1ky for the fix
 
 23.7.2024
 - Updated `ViewerDropsDashboard` request to mitigate crashes if the old one becomes obsolete.
