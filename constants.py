@@ -331,7 +331,7 @@ GQL_OPERATIONS: dict[str, GQLOperation] = {
         variables={
             "limit": ...,  # limit of channels returned
             "slug": ...,  # game slug
-            "includeIsDJ": True,
+            "includeIsDJ": False,
             "imageWidth": 50,
             "options": {
                 "broadcasterLanguages": [],
