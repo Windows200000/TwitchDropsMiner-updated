@@ -1,3 +1,11 @@
+## v15.8.2
+
+13.8.2024
+- update hash and add new variable includeIsDJ to fix `PersistedQueryNotFound` as reported in #159
+    - Thanks to @Nazar1ky for the fix
+
+
+
 ## v15.8.1
 
 5.8.2024
