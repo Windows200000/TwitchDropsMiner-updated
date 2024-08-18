@@ -424,7 +424,7 @@ class Channel:
                     if response2.status == 200:
                         StreamURLList = await response2.text()
                     else:
-                        logger.error(f"Request for streams from m3u8 returned: {response2}")
+                        logger.log(CALL,f"Request for streams from m3u8 returned: {response2}")
                         continue
             except RequestException:
                 logger.error(f"Failed to recieve list of streams.")
@@ -448,7 +448,7 @@ class Channel:
                 logger.error(f"Failed to recieve list of streams.")
                 return False, False
             await asyncio.sleep(1) # Wait a second to not spam twitch API
-        logger.error(f"Failed to watch last streamURL for all of {len(BroadcastQualitiesList)} Broadcast qualities.")
+        logger.error(f"Failed to watch all of {len(BroadcastQualitiesList)} Broadcast qualities. Can be ignored if occuring ~15x/hour.")
         return False, True
         """
         End of fix for 2024/5 API Change.
