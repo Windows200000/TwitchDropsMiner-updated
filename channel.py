@@ -377,7 +377,7 @@ class Channel:
         ]
         return {"data": (b64encode(json_minify(payload).encode("utf8"))).decode("utf8")}
 
-    async def send_watch(self) -> bool:
+    async def send_watch(self) -> tuple[bool, bool]:
         """
         Start of fix for 2024/5 API Change
         """
@@ -390,41 +390,66 @@ class Channel:
         signature: JsonType | None = response["data"]['streamPlaybackAccessToken']["signature"]
         value: JsonType | None = response["data"]['streamPlaybackAccessToken']["value"]
         if not signature or not value:
-            return False
+            return False, False
 
         RequestBroadcastQualitiesURL = f"https://usher.ttvnw.net/api/channel/hls/{self._login}.m3u8?sig={signature}&token={value}"
 
         try:
-            async with self._twitch.request(                            # Gets list of streams
+            async with self._twitch.request(                            # Gets list of m3u8 playlists
                 "GET", RequestBroadcastQualitiesURL
             ) as response1:
-                BroadcastQualities = await response1.text()
+                BroadcastQualitiesM3U = await response1.text()
         except RequestException:
-            return False
+            logger.error(f"Failed to recieve list of m3u8 playlists.")
+            return False, False
+        logger.log(CALL,f"BroadcastQualities: {BroadcastQualitiesM3U}")
         
-        BroadcastLowestQualityURL = BroadcastQualities.split("\n")[-1]  # Just takes the last line, this could probably be handled better in the future
-        if not validators.url(BroadcastLowestQualityURL):
-            return False
+        BroadcastQualitiesM3U = BroadcastQualitiesM3U.split("\n")
+        BroadcastQualitiesList = []
+        for i in range(int(len(BroadcastQualitiesM3U)/3)):              # gets all m3u8 playlists
+            BroadcastQualitiesList.append(BroadcastQualitiesM3U[4+3*i])
 
-        try:
-            async with self._twitch.request(                            # Gets actual streams
-                "GET", BroadcastLowestQualityURL
-            ) as response2:
-                StreamURLList = await response2.text()
-        except RequestException:
-            return False
+        if not all(validators.url(url) for url in BroadcastQualitiesList):
+            logger.error(f"Couldn't parse list of m3u8 playlists.")
+            return False, False
+        logger.log(CALL,f"BroadcastQualitiesList: {BroadcastQualitiesList}")
 
-        StreamLowestQualityURL = StreamURLList.split("\n")[-2] # For whatever reason this includes a blank line at the end, this should probably be handled better in the future
-        if not validators.url(StreamLowestQualityURL):
-            return False
+        retries = -1
+        for BroadcastQuality in BroadcastQualitiesList:
+            retries = retries + 1
+            try:
+                async with self._twitch.request(                            # Gets actual streams
+                    "GET", BroadcastQuality, return_error = True
+                ) as response2:
+                    if response2.status == 200:
+                        StreamURLList = await response2.text()
+                    else:
+                        logger.error(f"Request for streams from m3u8 returned: {response2}")
+                        continue
+            except RequestException:
+                logger.error(f"Failed to recieve list of streams.")
+                return False, False
 
-        try:
-            async with self._twitch.request(                            # Downloads the stream
-                "HEAD", StreamLowestQualityURL
-            ) as response3:                                             # I lied, well idk, but this code doesn't listen for the actual video data
-                return response3.status == 200
-        except RequestException:
-            return False
+            StreamURL = StreamURLList.split("\n")[-2] # For whatever reason this includes a blank line at the end, this should probably be handled better in the future
+            if not validators.url(StreamURL):
+                logger.error(f"Failed to parse streamURL.")
+                return False, False
+
+            try:
+                async with self._twitch.request(                            # The HEAD request is enough to advance drops
+                    "HEAD", StreamURL, return_error = True
+                ) as response3:
+                    if response3.status == 200:
+                        logger.log(CALL,f"Successfully watched after {retries} retries.")
+                        return True, False
+                    else:
+                        logger.error(f"Request for stream HEAD returned: {response2}")
+            except RequestException:
+                logger.error(f"Failed to recieve list of streams.")
+                return False, False
+            await asyncio.sleep(1) # Wait a second to not spam twitch API
+        logger.error(f"Failed to watch last streamURL for all of {len(BroadcastQualitiesList)} Broadcast qualities.")
+        return False, True
         """
         End of fix for 2024/5 API Change.
         Old code below.

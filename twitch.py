@@ -1045,12 +1045,18 @@ class Twitch:
     async def _watch_loop(self) -> NoReturn:
         interval: float = WATCH_INTERVAL.total_seconds()
         while True:
+            logger.log(CALL,f"beginning of watch loop")
             channel: Channel = await self.watching_channel.get()
-            succeeded: bool = await channel.send_watch()
+            logger.log(CALL,f"about to send watch")
+            succeeded, repeat_now = await channel.send_watch()
+            logger.log(CALL,f"returned watch, succeeded: {succeeded}, repeat_new: {repeat_now}")
             if not succeeded:
                 # this usually means the campaign expired in the middle of mining
+                # or the m3u8 playlists all returned a 500 Internal server error
                 # NOTE: the maintenance task should switch the channel right after this happens
-                await self._watch_sleep(interval)
+                if not repeat_now:
+                    await self._watch_sleep(interval)
+                logger.log(CALL,f"send_watch returned false")
                 continue
             last_watch = time()
             self._drop_update = asyncio.Future()
@@ -1480,7 +1486,7 @@ class Twitch:
 
     @asynccontextmanager
     async def request(
-        self, method: str, url: URL | str, *, invalidate_after: datetime | None = None, **kwargs
+        self, method: str, url: URL | str, *, invalidate_after: datetime | None = None, return_error: bool = False, **kwargs
     ) -> abc.AsyncIterator[aiohttp.ClientResponse]:
         session = await self.get_session()
         method = method.upper()
@@ -1505,12 +1511,12 @@ class Twitch:
                 )
                 assert response is not None
                 logger.debug(f"Response: {response.status}: {response}")
-                if response.status < 500:
+                if response.status < 500 or return_error:
                     # pre-read the response to avoid getting errors outside of the context manager
                     raw_response = await response.read()  # noqa
                     yield response
                     return
-                self.print(_("error", "site_down").format(seconds=round(delay)))
+                self.print(_("error", "site_down").format(seconds=round(delay)) + f"\nResponse: {response}" + f"\nStatus: {response.status}")
             except aiohttp.ClientConnectorCertificateError:  # type: ignore[unused-ignore]
                 # for a case where SSL verification fails
                 raise
