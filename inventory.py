@@ -220,7 +220,7 @@ class TimedDrop(BaseDrop):
         if self.required_minutes:   # Quick fix to prevent division by zero crash
             return self.current_minutes / self.required_minutes
         else:
-            self._manager.print(f'!!!required_minutes for "{self.name}" from "{self.campaign.game.name}" is 0 This could be due to a subscription requirement, tracked in Issue #101!!!')
+            self._manager.print(f'Required_minutes for "{self.name}" from "{self.campaign.game.name}" is 0. This could be due to a subscription requirement, tracked in Issue #101. Take a look at the drop, but this can likely be ignored.')
             self.preconditions_met = False
             return 0
 
