@@ -1045,9 +1045,7 @@ class Twitch:
     async def _watch_loop(self) -> NoReturn:
         interval: float = WATCH_INTERVAL.total_seconds()
         while True:
-            logger.log(CALL,f"beginning of watch loop")
             channel: Channel = await self.watching_channel.get()
-            logger.log(CALL,f"about to send watch")
             succeeded, repeat_now = await channel.send_watch()
             logger.log(CALL,f"returned watch, succeeded: {succeeded}, repeat_new: {repeat_now}")
             if not succeeded:
@@ -1056,7 +1054,6 @@ class Twitch:
                 # NOTE: the maintenance task should switch the channel right after this happens
                 if not repeat_now:
                     await self._watch_sleep(interval)
-                logger.log(CALL,f"send_watch returned false")
                 continue
             last_watch = time()
             self._drop_update = asyncio.Future()

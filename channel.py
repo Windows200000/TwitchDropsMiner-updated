@@ -402,7 +402,6 @@ class Channel:
         except RequestException:
             logger.error(f"Failed to recieve list of m3u8 playlists.")
             return False, False
-        logger.log(CALL,f"BroadcastQualities: {BroadcastQualitiesM3U}")
         
         BroadcastQualitiesM3U = BroadcastQualitiesM3U.split("\n")
         BroadcastQualitiesList = []
@@ -412,7 +411,6 @@ class Channel:
         if not all(validators.url(url) for url in BroadcastQualitiesList):
             logger.error(f"Couldn't parse list of m3u8 playlists.")
             return False, False
-        logger.log(CALL,f"BroadcastQualitiesList: {BroadcastQualitiesList}")
 
         retries = -1
         for BroadcastQuality in BroadcastQualitiesList:
@@ -448,7 +446,7 @@ class Channel:
                 logger.error(f"Failed to recieve list of streams.")
                 return False, False
             await asyncio.sleep(1) # Wait a second to not spam twitch API
-        logger.error(f"Failed to watch all of {len(BroadcastQualitiesList)} Broadcast qualities. Can be ignored if occuring ~15x/hour.")
+        logger.error(f"Failed to watch all of {len(BroadcastQualitiesList)} Broadcast qualities. Can be ignored if occuring up to ~15x/hour.")
         return False, True
         """
         End of fix for 2024/5 API Change.
