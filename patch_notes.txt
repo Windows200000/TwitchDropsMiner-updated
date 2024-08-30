@@ -1,3 +1,14 @@
+## v15.9.0
+
+18.8.2024
+- Added game name to `0 required minutes` error message
+
+27.8.2024
+- Clarified that 0 required minutes error is not critical
+- Fixed "Twitch is down, retrying" for my case. It seems like some might still experience the issue. Tracked in #172
+
+
+
 ## v15.8.2
 
 13.8.2024
