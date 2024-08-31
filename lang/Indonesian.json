@@ -82,7 +82,9 @@
     },
     "progress": {
       "name": "Progres kampanye",
+      "drop": "Drop:",
       "game": "Game",
+      "campaign": "Kampanye:",
       "remaining": "{time} tersisa",
       "drop_progress": "Progres:",
       "campaign_progress": "Progres:"
@@ -118,9 +120,12 @@
         "not_linked": "Tidak tertautkan ❌",
         "active": "Aktif ✔",
         "upcoming": "Segera hadir ⏳",
+        "expired": "Kadaluarsa ❌",
         "claimed": "Diklaim ✔",
         "ready_to_claim": "Siap untuk diklaim ⏳"
       },
+      "starts": "Mulai: {time}",
+      "ends": "Akhir: {time}",
       "allowed_channels": "Kanal yang diperbolehkan:",
       "all_channels": "Semua",
       "and_more": "dan {amount} yang lainnya...",
@@ -131,8 +136,11 @@
       "general": {
         "name": "Umum",
         "dark_theme": "Tema gelap: ",
+        "autostart": "Mulai secara otomatis:",
         "tray": "Mulai otomatis di tray:",
         "tray_notifications": "Notifikasi di tray:",
+        "priority_only": "Prioritas Saja:",
+        "prioritize_by_ending_soonest": "Memprioritaskan yang segera berakhir: ",
         "proxy": "Proxy (membutuhkan mulai ulang):"
       },
       "game_name": "Nama game",
@@ -147,6 +155,7 @@
         "inventory": "Lihat inventaris Twitch",
         "campaigns": "Lihat semua kampanye dan kelola akun terkait"
       },
+      "how_it_works": "Cara Kerja",
       "how_it_works_text": "Setiap ~20 detik, aplikasi ini mengirimkan permintaan URL pada Twitch untuk mendapatkan data tayangan mentah dari kanal yang sedang ditonton. Lalu aplikasi ini akan mengambil metadata dari tayangan tersebut - cukup untuk mempercepat proses drop. Perhatikan bahwa hal ini sama sekali tidak mengunduh gambar dan suara dari streaming yang sebenarnya. Untuk menjaga agar status (DARING atau LURING) saluran tetap terbarukan, koneksi socket web dibuat untuk menerima peristiwa tentang streaming yang naik atau turun, atau pembaruan tentang jumlah penonton saat ini",
       "getting_started": "Permulaan",
       "getting_started_text": "1. Masuk ke aplikasi.\n2. Pastikan akun Twitch Anda ditautkan ke semua kampanye yang Anda minati.\n3. Jika Anda hanya ingin menambang semuanya, hapus centang pada \"Hanya Prioritas\" dan tekan \"Muat Ulang\".\n4. Jika Anda ingin menambang game tertentu terlebih dahulu, gunakan daftar \"Prioritas\" untuk menentukan daftar game pilihan Anda. Game yang berada di bagian atas daftar akan tergoda untuk ditambang terlebih dahulu, sebelum game yang berada di bagian bawah daftar.\n5. Biarkan opsi \"Prioritas saja\" dicentang untuk menghindari menambang game yang tidak ada dalam daftar prioritas. Atau tidak - terserah Anda.\n6. Gunakan daftar \"Kecualikan\" untuk memberi tahu aplikasi game mana yang tidak boleh ditambang.\n7. Untuk memodifikasi konten dari salah satu daftar atau mengubah status opsi \"Hanya Prioritas\", Anda perlu menekan \"Muat Ulang\" agar perubahan dapat diterapkan."
