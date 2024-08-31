@@ -1,5 +1,12 @@
 ## v15.9.0
 
+31.8.2024
+- Finished Indonesian translation and added corresponding credits
+
+
+
+## v15.9.0
+
 18.8.2024
 - Added game name to `0 required minutes` error message
 
