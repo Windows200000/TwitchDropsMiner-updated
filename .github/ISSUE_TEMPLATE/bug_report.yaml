@@ -68,7 +68,7 @@ body:
       label: Logs
       description: |
         If you have them, provide any logs. They can help, even if no error is shown.
-        Ideally run with `-vvv --debug-gql --debug-ws --log`.
+        Please run TDM with `-vvv --log`. This can be done via cmd.
       placeholder: |
         ```
         11:35:35: No available channels to watch. Waiting for an ONLINE channel...
