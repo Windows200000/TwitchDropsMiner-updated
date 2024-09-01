@@ -1,4 +1,4 @@
-## v15.9.0
+## v15.9.1
 
 31.8.2024
 - Finished Indonesian translation and added corresponding credits
