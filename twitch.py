@@ -1570,6 +1570,7 @@ class Twitch:
                                 "service unavailable",
                                 "service timeout",
                                 "context deadline exceeded",
+                                "PersistedQueryNotFound",
                             )
                         ):
                             force_retry = True
