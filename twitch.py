@@ -1536,9 +1536,66 @@ class Twitch:
         ...
 
     async def gql_request(
+        self, ops: GQLOperation | list[GQLOperation], retry_on_persisted_query_error: bool = True
+    ) -> JsonType | list[JsonType]:
+    async def gql_request(
         self, ops: GQLOperation | list[GQLOperation]
     ) -> JsonType | list[JsonType]:
         gql_logger.debug(f"GQL Request: {ops}")
+        backoff = ExponentialBackoff(maximum=60)
+        for delay in backoff:
+            try:
+                auth_state = await self.get_auth()
+                async with self.request(
+                    "POST",
+                    "https://gql.twitch.tv/gql",
+                    json=ops,
+                    headers=auth_state.headers(user_agent=self._client_type.USER_AGENT, gql=True),
+                    invalidate_after=getattr(auth_state, "integrity_expires", None),
+                ) as response:
+                    response_json: JsonType | list[JsonType] = await response.json()
+            except RequestInvalid:
+                continue
+            gql_logger.debug(f"GQL Response: {response_json}")
+            orig_response = response_json
+            if isinstance(response_json, list):
+                response_list = response_json
+            else:
+                response_list = [response_json]
+            force_retry: bool = False
+            for response_json in response_list:
+                if "errors" in response_json:
+                    for error_dict in response_json["errors"]:
+                        if (
+                            "message" in error_dict
+                            and error_dict["message"] in (
+                                "service unavailable",
+                                "service timeout",
+                                "context deadline exceeded",
+                            )
+                        ):
+                            force_retry = True
+                            break
+                        elif (
+                            "message" in error_dict
+                            and error_dict["message"] == "PersistedQueryNotFound"
+                            and retry_on_persisted_query_error
+                        ):
+                            # Retry with the full query
+                            if isinstance(ops, list):
+                                ops = [op.with_query() for op in ops]
+                            else:
+                                ops = ops.with_query()
+                            force_retry = True
+                            break
+                    else:
+                        raise MinerException(f"GQL error: {response_json['errors']}")
+                if force_retry:
+                    break
+            else:
+                return orig_response
+            await asyncio.sleep(delay)
+        raise MinerException()
         backoff = ExponentialBackoff(maximum=60)
         for delay in backoff:
             try:
@@ -1582,7 +1639,6 @@ class Twitch:
                 return orig_response
             await asyncio.sleep(delay)
         raise MinerException()
-
     def _merge_data(self, primary_data: JsonType, secondary_data: JsonType) -> JsonType:
         merged = {}
         for key in set(chain(primary_data.keys(), secondary_data.keys())):
