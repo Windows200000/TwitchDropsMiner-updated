@@ -245,6 +245,7 @@ GQL_OPERATIONS: dict[str, GQLOperation] = {
         variables={
             "isLive": True,
             "login": "...",
+            "platform": "web",
             "isVod": False,
             "vodID": "",
             "playerType": "site"
