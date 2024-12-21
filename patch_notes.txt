@@ -1,3 +1,9 @@
+## v15.10.0
+
+13.12.2024
+- Updated persisted queries
+- (Fix to appimage builder by [guihkx](https://github.com/guihkx))
+
 ## v15.9.1
 
 31.8.2024
