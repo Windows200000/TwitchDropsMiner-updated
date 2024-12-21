@@ -12,6 +12,15 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "Run App",
+            "type": "python",
+            "request": "launch",
+            "program": "main.py",
+            "args": [""],
+            "console": "integratedTerminal",
+            "justMyCode": false
+        },
+        {
             "name": "Run App (INFO)",
             "type": "python",
             "request": "launch",
