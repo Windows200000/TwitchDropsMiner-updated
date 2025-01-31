@@ -190,7 +190,9 @@ jobs:
         with:
           if-no-files-found: error
           name: Twitch.Drops.Miner.Linux.AppImage
-          path: Twitch.Drops.Miner.Linux.AppImage.zip
+          path: |
+            Twitch.Drops.Miner.Linux.AppImage.zip
+            *.AppImage
 
   update_releases_page:
     name: Upload builds to Releases
