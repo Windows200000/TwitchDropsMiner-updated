@@ -1,8 +1,18 @@
+## v15.11.0
+
+31.01.2025
+- Make the GQL claim operation treat request errors as a failed claiming operation (by DevilXD)
+- adding raw AppImage to releases for auto-update support via GearLever
+
+
+
 ## v15.10.0
 
 13.12.2024
 - Updated persisted queries
 - (Fix to appimage builder by [guihkx](https://github.com/guihkx))
+
+
 
 ## v15.9.1
 
