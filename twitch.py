@@ -1574,8 +1574,34 @@ class Twitch:
                         ):
                             force_retry = True
                             break
+
+                        if (
+                            "message" in error_dict
+                            and error_dict["message"] in (
+                                # "service error",
+                                "PersistedQueryNotFound",
+                            )
+                        ):
+                            additional_message = (
+                                "\n\nThis error can often dissapear by itself. You can also contribute by:\n"
+                                "1. Opening Twitch with your Browser\n"
+                                "2. Opening Developer Toools (f12)\n"
+                                "3. Going to Network\n"
+                                "4. Reloading and navigating around Twitch (streams, drop page, game search etc.)\n"
+                                "    - Claiming a Drop and ChannelPoints is required for those 2 queries\n"
+                                "5. Searching REQUEST CONTENTS (search icon, not filtering url) for all the things under \"GQL_OPERATIONS\" in constants.py\n"
+                                "    - The second string, so \"VideoPlayerStreamInfoOverlayChannel\", not \"GetStreamInfo\"\n"
+                                "6. Opening the requests under gql.twitch.tv"
+                                "6. Going to Request (not response, you might have to disable raw or otherwise set it to json view)"
+                                "7. One should have a \"sha256Hash\" under 0->extensions->persistedQuery"
+                                "7. Replacing the hash in constants.py and making a pull request on GitHub\n"
+                                "    - Please document all the queries you checked, even if they didn't change, or just check all\n"
+                                "\nIf this is unclear, tell me on GitHub and I'll try to give better instruictions\n"
+                                "Issue #126 is tracking a possible permanent solution, if you can help with that\n"
+                                "\nThanks ;)"
+                            )
                     else:
-                        raise MinerException(f"GQL error: {response_json['errors']}")
+                        raise MinerException(f"GQL error: {response_json['errors']}{additional_message if additional_message else ''}")
                 if force_retry:
                     break
             else:
