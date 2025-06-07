@@ -209,13 +209,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Get next version
-        uses: reecetech/version-increment@2024.4.3
-        id: version
-        with:
-          scheme: semver
-          increment: minor
-
       - name: Set up variables
         id: vars
         run: |
@@ -233,6 +226,15 @@ jobs:
         with:
           path: ./patch_notes.txt
 
+      - name: Extract version from patch notes
+        id: extract_version
+        run: |
+          echo "Raw content:"
+          echo "${{ steps.patch_notes.outputs.content }}"
+          version=$(echo "${{ steps.patch_notes.outputs.content }}" | grep -m1 -oE '^## v[0-9]+\.[0-9]+\.[0-9]+' | sed 's/^## //')
+          echo "Found version: $version"
+          echo "version=$version" >> $GITHUB_OUTPUT
+
       - name: Upload builds to Releases
         uses: ncipollo/release-action@v1
         with:
@@ -247,10 +249,12 @@ jobs:
             - Reference commit: ${{ github.sha }}
             
             ***
-            ## Patch notes:
+            <details>
+            <summary>Patch notes</summary>
             ${{ steps.patch_notes.outputs.content }}
+            </details>
 
-          name: ${{ steps.version.outputs.v-version }} - Updated tested build (${{ steps.vars.outputs.sha_short }})
+          name: ${{ steps.extract_version.outputs.version }} - Updated tested build (${{ steps.vars.outputs.sha_short }})
           prerelease: false
           removeArtifacts: true
-          tag: ${{ steps.version.outputs.v-version }}
+          tag: ${{ steps.extract_version.outputs.version }}
