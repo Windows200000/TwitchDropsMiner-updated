@@ -241,7 +241,7 @@ GQL_OPERATIONS: dict[str, GQLOperation] = {
     # retuns PlaybackAccessToken_Template, for fix 2024/5
     "PlaybackAccessToken": GQLOperation(
         "PlaybackAccessToken",
-        "c101f277c6ab7de34f64e63c90d698edae0d83ed5fad8efe198596b472ef3337",
+        "ed230aa1e33e07eebb8928504583da78a5173989fadfb1ac94be06a04f3cdbe9",
         variables={
             "isLive": True,
             "login": "...",
@@ -254,7 +254,7 @@ GQL_OPERATIONS: dict[str, GQLOperation] = {
     # returns stream information for a particular channel
     "GetStreamInfo": GQLOperation(
         "VideoPlayerStreamInfoOverlayChannel",
-        "aeb02ffde95392868a9da662631090526b891a2972620e6b6393873a39111564",
+        "e785b65ff71ad7b363b34878335f27dd9372869ad0c5740a130b9268bcdbe7e7",
         variables={
             "channel": ...,  # channel login
         },
@@ -283,7 +283,7 @@ GQL_OPERATIONS: dict[str, GQLOperation] = {
     # returns current state of points (balance, claim available) for a particular channel
     "ChannelPointsContext": GQLOperation(
         "ChannelPointsContext",
-        "7a2267973bdd74b9ddd5d07ceabd73b5b5d13eae83b54d4436fb5a3fa26c3bc8",
+        "374314de591e69925fce3ddc2bcf085796f56ebb8cad67a0daa3165c03adc345",
         variables={
             "channelLogin": ...,  # channel login
         },
@@ -291,7 +291,7 @@ GQL_OPERATIONS: dict[str, GQLOperation] = {
     # returns all in-progress campaigns
     "Inventory": GQLOperation(
         "Inventory",
-        "012157dd34a0fb2f401124cd5a66b3f333a6ea572f75ba0db91a69bae0c3bd13",
+        "d86775d0ef16a63a33ad52e80eaff963b2d5b72fada7c991504a57496e1d8e4b",
         # no variables needed
     ),
     # returns current state of drops (current drop progress)
@@ -303,7 +303,7 @@ GQL_OPERATIONS: dict[str, GQLOperation] = {
     # returns all available campaigns
     "Campaigns": GQLOperation(
         "ViewerDropsDashboard",
-        "89ae376644937a5843e7f9220392331484f78d4641e46df63bcf7491eacf2bd0",
+        "5a4da2ab3d5b47c9f9ce864e727b2cb346af1e3ea8b897fe8f704a97ff017619",
         variables={
             "fetchRewardCampaigns": False,
         }
@@ -311,7 +311,7 @@ GQL_OPERATIONS: dict[str, GQLOperation] = {
     # returns extended information about a particular campaign
     "CampaignDetails": GQLOperation(
         "DropCampaignDetails",
-        "7a2267973bdd74b9ddd5d07ceabd73b5b5d13eae83b54d4436fb5a3fa26c3bc8",
+        "039277bf98f3130929262cc7c6efd9c141ca3749cb6dca442fc8ead9a53f77c1",
         variables={
             "channelLogin": ...,  # user login
             "dropID": ...,  # campaign ID
@@ -320,7 +320,7 @@ GQL_OPERATIONS: dict[str, GQLOperation] = {
     # returns drops available for a particular channel (unused)
     "AvailableDrops": GQLOperation(
         "DropsHighlightService_AvailableDrops",
-        "eff13f4a43157238e40b4cd74b0dac3a41b5f8fb31de1a3b19347fae84e60b92",
+        "782dad0f032942260171d2d80a654f88bdd0c5a9dddc392e9bc92218a0f42d20",
         variables={
             "channelID": ...,  # channel ID as a str
         },
@@ -328,7 +328,7 @@ GQL_OPERATIONS: dict[str, GQLOperation] = {
     # returns live channels for a particular game
     "GameDirectory": GQLOperation(
         "DirectoryPage_Game",
-        "822ecf40c2a77568d2b223fd5bc4dfdc9c863f081dd1ca7611803a5330e88277",
+        "c7c9d5aad09155c4161d2382092dc44610367f3536aac39019ec2582ae5065f9",
         variables={
             "limit": ...,  # limit of channels returned
             "slug": ...,  # game slug
@@ -348,7 +348,7 @@ GQL_OPERATIONS: dict[str, GQLOperation] = {
     ),
     "NotificationsView": GQLOperation(  # unused, triggers notifications "update-summary"
         "OnsiteNotifications_View",
-        "822ecf40c2a77568d2b223fd5bc4dfdc9c863f081dd1ca7611803a5330e88277",
+        "db011164c7980ce0b90b04d8ecab0c27cfc8505170e2d6b1a5a51060a8e658df",
         variables={
             "input": {},
         },
