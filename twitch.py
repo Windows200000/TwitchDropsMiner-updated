@@ -1562,28 +1562,20 @@ class Twitch:
             force_retry: bool = False
             for response_json in response_list:
                 if "errors" in response_json:
+                    additional_message = ""
                     for error_dict in response_json["errors"]:
-                        if (
-                            "message" in error_dict
-                            and error_dict["message"] in (
+                        if "message" in error_dict:
+                            if error_dict["message"] in (
                                 # "service error",
                                 "service unavailable",
                                 "service timeout",
                                 "context deadline exceeded",
-                            )
-                        ):
-                            force_retry = True
-                            break
-
-                        if (
-                            "message" in error_dict
-                            and error_dict["message"] in (
-                                # "service error",
-                                "PersistedQueryNotFound",
-                            )
-                        ):
-                            additional_message = (
-                                "\n\nThis error can often dissapear by itself. You can also contribute by:\n"
+                            ):
+                                force_retry = True
+                                break
+                            elif error_dict["message"] in "PersistedQueryNotFound":
+                                additional_message = (
+                                "\n\nPersistedQueryNotFound can often dissapear by itself. You can also contribute by:\n"
                                 "1. Opening Twitch with your Browser\n"
                                 "2. Opening Developer Toools (f12)\n"
                                 "3. Going to Network\n"
@@ -1599,7 +1591,7 @@ class Twitch:
                                 "\nIf this is unclear, tell me on GitHub and I'll try to give better instruictions\n"
                                 "Issue #126 is tracking a possible permanent solution, if you can help with that\n"
                                 "\nThanks ;)"
-                            )
+                                )
                     else:
                         raise MinerException(f"GQL error: {response_json['errors']}{additional_message if additional_message else ''}")
                 if force_retry:
