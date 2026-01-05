@@ -1,4 +1,18 @@
-# Twitch Drops Miner
+# :warning: This Fork is deprecated :warning:
+
+[Here is a script that automatically builds DevilXD's latest build.](https://github.com/Windows200000/TDM-builder)  
+You can link it in the Windows startup folder to run on startup. Make sure to disable autostart within TDM itself if you use it.
+
+---
+Unfortunately, I don't have the time to maintain this repo anymore because I'm busy with studies and work. DevilXD has caught up with drops working, dark mode, and prioritising by ending soonest, so I hope all of you will find what you want in his original repo.
+
+Thanks to all contributors, translators & issue creators for help and support on this journey. I hope you grew and learned along the way as I have.
+
+Love, Arne :)
+
+<br/><br/><br/><br/>
+
+# Original README: Twitch Drops Miner
 
 Thanks to @DevilXD and other contributors from the [original repo](https://github.com/DevilXD/TwitchDropsMiner) for the vast majority of the code.
 
